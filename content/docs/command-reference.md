@@ -118,6 +118,7 @@ draft: false
     ```bash
     # 초기화    
     terraform init
+    terraform init --upgrade
 
     # 계획 확인
     terraform plan
