@@ -79,27 +79,27 @@
     font-weight: 700;
     color: var(--body-color);
 }
+
 // 헤딩 크기 조정
-// 헤딩 태그 크기 조절 - 기존 구조 유지하며 추가
-.docs-content .main-content h2 {
-    font-size: 1.5rem;  // 더 작은 크기로 설정
+.docs-content .main-content h1 {
+    font-size: 2.0rem;  // 가장 큰 크기
 }
 
 .docs-content .main-content h2 {
-    font-size: 1.3rem;
+    font-size: 1.7rem;  // h1보다 작은 크기
 }
 
 .docs-content .main-content h3 {
-    font-size: 1.0rem;
+    font-size: 1.4rem;  // h2보다 작은 크기
 }
 
 .docs-content .main-content h4 {
-    font-size: 0.7rem;
+    font-size: 1.2rem;  // h3보다 작은 크기
 }
 
 .docs-content .main-content h5,
 .docs-content .main-content h6 {
-    font-size: 0.7rem;
+    font-size: 1.0rem;  // 기본 텍스트 크기
 }
 
 // 헤딩 크기 조정 종료
