@@ -1,0 +1,33 @@
+baseURL = 'https://dangtong76.github.io/cwave-cloudnative/'
+languageCode = 'ko-kr'
+title = 'Kubernetes Course'
+contentDir = 'content'
+uglyURLs = false
+cleanDestinationDir = true
+enableEmoji = true
+# relativeURLs = true
+# canonifyURLs = true
+
+[module]
+  [module.hugoVersion]
+    extended = true
+    min = "0.140.0"
+  [[module.imports]]
+    path = "github.com/colinwilson/lotusdocs"
+    disable = false
+  [[module.imports]]
+    path = "github.com/gohugoio/hugo-mod-bootstrap-scss/v5"
+    disable = false
+
+[markup]
+  [markup.tableOfContents]
+    endLevel = 4
+    startLevel = 1
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true # https://jdhao.github.io/2019/12/29/hugo_html_not_shown/
+      hardWraps = true # 모든 줄바꿈을 <br> 태그로 변환
+    [markup.goldmark.parser]
+      [markup.goldmark.parser.attribute]
+        block = true
+     
