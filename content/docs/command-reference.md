@@ -12,6 +12,12 @@ draft: false
     # 리포지토리 초기화
     git init 
 
+    # Git Config 파일 수정 
+    git config --global --edit
+
+    git config --global user.name "Your Name"
+    git config --global user.email you@example.com
+
     # Stage 에 파일 추가
     git add .  
 
