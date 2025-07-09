@@ -6,7 +6,7 @@ draft: false
 #url: "/cicd-config-env/"
 ---
 ---
-## 1. 내 컴퓨터 실행 환경 준비
+# 1. 내 컴퓨터 실행 환경 준비
 이번 챕터 에서는 우리가 실습하기 위해  내 컴퓨터에 최소한의 필수 유틸리티를 설치합니다.
 실습을 위한 필수 설치 목록은 아래와 같습니다.
 - **Visual Studio Code**
@@ -15,7 +15,6 @@ draft: false
 - **IDE 컨테이너 실행**
 
 ### 1-1. 시작하기
-#### 1-1-1. 끝내기
 
 ### Visual Studio Code 설치
 [Visual Studio Code Download](https://code.visualstudio.com/download)
