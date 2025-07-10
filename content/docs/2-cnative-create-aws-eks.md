@@ -1,5 +1,5 @@
 ---
-title: "☁️ Terraform 이용한 EKS 생성"
+title: "☁️ 3. Terraform 이용한 EKS 생성"
 weight: 3
 date: 2025-02-02
 draft: false
@@ -13,18 +13,11 @@ draft: false
 
 
 ---
-## 1. Simple Web 무식하게 배포하기
+## 1. 사전 준비
 ---
+- AWS 계정 생성 및 권한 할당
+- awscli 계정 설정
 
-
-Simple Web 은 정적 웹 페이지로 구성된 프로젝트입니다. 이번장에서는 가장 단순한 현태의 애플리케이션을 AWS 에 배포하는 파이프라인을 구성합니다.
-
-파이프라인 구성시에 사용되는 **기술 스택**은 아래와 같습니다.
-
-- Terraform
-- GitHub Actions
-- AWS S3
-- AWS CodeDeploy
 
 ### 1. 프로젝트 포크 하기
 

@@ -1,5 +1,5 @@
 ---
-title: "😎 로컬 K8S 클러스터 생성"
+title: "😎 2. 로컬 K8S 클러스터 생성"
 weight: 2
 description: ""
 icon: "article"
@@ -20,12 +20,19 @@ Kind는 Go 언어를 기반으로 만들어 졌으며, Docker 이미지를 기�
 
 kind 공식 홈페이지 : [kind.sigs.k8s.io](https://kind.sigs.k8s.io)
 
+kind와 유사하게 멀티노드 기반 쿠버네티스 로컬 클러스터 구축 도구에는 아래와 같은 것들이 있습니다.
+
+| 도구명 | 공식 URL |
+|------------------|-------------------|
+| minikube | https://minikube.sigs.k8s.io |
+| k3s | https://k3s.io |
+| MicroK8s | https://microk8s.io |
+| k3d | https://k3d.io |
+
+
 ## 2. Kind 설치 하기
-
 설치 가이드 원본 URL : https://kind.sigs.k8s.io/docs/user/quick-start/#installation
-
 ### - MacOS
-
 ```bash
 brew install kind
 ```
