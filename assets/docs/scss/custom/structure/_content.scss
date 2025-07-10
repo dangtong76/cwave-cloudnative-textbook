@@ -297,3 +297,8 @@ i {
 .docs-content figcaption {
     font-size: small;
 }
+
+.docs-content .main-content pre,
+.docs-content .main-content code {
+  margin-bottom: 1.2rem; // 필요에 따라 값 조절
+}

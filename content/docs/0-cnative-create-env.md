@@ -6,7 +6,7 @@ draft: false
 #url: "/cicd-config-env/"
 ---
 ---
-## 1. 내 컴퓨터 실행 환경 준비
+
 이번 챕터 에서는 우리가 실습하기 위해  내 컴퓨터에 최소한의 필수 유틸리티를 설치합니다.
 실습을 위한 필수 설치 목록은 아래와 같습니다.
 - **Visual Studio Code**
@@ -14,15 +14,15 @@ draft: false
 - **컨테이너 런타임**
 - **IDE 컨테이너 실행**
 
-### 1-1. 로컬 개발도구 설치하기
+## 1. 로컬 개발도구 설치하기
 
-#### - Visual Studio Code 설치
+### - Visual Studio Code 설치
 [Visual Studio Code Download](https://code.visualstudio.com/download)
 
-#### - Git 설치
+### - Git 설치
 [Git Download](https://git-scm.com/downloads)
 
-#### - Github 클라이언트 설치
+### - Github 클라이언트 설치
 - CLI 이용한 설치
 ```bash
 # Mac OS
@@ -56,8 +56,8 @@ gh auth login
 2. Podman Desktop
    
    [Podman Desktop Download](https://podman.io/docs/installation)
-### 1-2 웹 IDE 환경 만들기
-#### - Git 리포지토리 포크 및 클론 
+## 2. 웹 IDE 환경 만들기
+### - Git 리포지토리 포크 및 클론 
    ```bash
   
    # 직접 리포지토리 방문해서 포크 하기위한 URL  (https://github.com/dangtong76/devops-cicd)
@@ -66,7 +66,7 @@ gh auth login
    
    ```
 
-#### - 도커볼륨 생성
+### - 도커볼륨 생성
    ```bash
    # 도커볼륨 생성
    docker volume create devops-cicd-apps
@@ -82,7 +82,7 @@ gh auth login
    docker inspect devops-cicd-apps
    docker inspect devops-cicd-vscode
    ```
-#### - 도커 hub 계정 가입하고 IDE 이미지 빌드하기 (선택사항)
+### - 도커 hub 계정 가입하고 IDE 이미지 빌드하기 (선택사항)
    [Docker Hub 계정 가입하기](https://hub.docker.com/)
 
    ```bash
@@ -98,16 +98,16 @@ gh auth login
    # 이미지 푸시
    docker push <your-dockerhub-id>/cloud-cicd-ide:latest
    ```
-#### - Docker Compose 이용한 IDE 컨테이너 실행
+### - Docker Compose 이용한 IDE 컨테이너 실행
    ```bash
    # 도커 컴포즈 파일 실행
    docker compose up -d
    ```
-#### - IDE 접속하기
+### - IDE 접속하기
    http://localhost:8444 에 접속합니다.
 
 
-#### - Visual Studio Code Extension 설치
+### - Visual Studio Code Extension 설치
 
 - Thunder client : REST API 용
 - Github 관련
@@ -120,12 +120,12 @@ gh auth login
    - Spring Boot Extension Pack
 - HashiCorp Terraform
 
-#### - Indent 설정하기
+### - Indent 설정하기
 
 VSCode 에서 Manage () → settings → editor.tab 으로 검색해서 → Editor: Tab Size 를 2로 설정
 
 
-### 1-3 웹 IDE 개발환경 구성도
+## 3. 웹 IDE 개발환경 구성도
    
    아래는 IDE 컨테이너 환경에 대한 슬라이드 입니다. 
    <iframe src="https://docs.google.com/presentation/d/e/2PACX-1vRwGw0Fcyu00fiL6wtdmW7KNxcaEqu1uT5xZ8Aa_7Wgo409F3qZJwfkgot8983ZQ7Tc_M6r982N8S0p/embed?start=false&loop=false&delayms=3000" frameborder="0" width="960" height="569" allowfullscreen="true" mozallowfullscreen="true" webkitallowfullscreen="true"></iframe>

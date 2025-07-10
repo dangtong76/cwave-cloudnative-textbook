@@ -1,4 +1,5 @@
-baseURL = 'https://dangtong76.github.io/cwave-cloudnative/'
+# baseURL = 'https://dangtong76.github.io/cwave-cloudnative/'
+baseURL = '/'
 languageCode = 'ko-kr'
 title = 'Kubernetes Course'
 contentDir = 'content'
