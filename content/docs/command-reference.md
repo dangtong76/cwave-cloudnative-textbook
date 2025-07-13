@@ -154,6 +154,9 @@ draft: false
 
     # aws eks 로 부터 kubectl config 업데이트 하기
     aws eks update-kubeconfig --region ap-northeast-2 --name istory
+
+    # aws 로드밸런서 상태 확인
+    aws elbv2 describe-load-balancers
     ``` 
 5. Hugo 명령어
 
@@ -171,6 +174,10 @@ draft: false
 
 6. Docker 명령어
     ```bash
+    # manifest 확인
     docker manifest inspect dangtong76/cicd-devops-ide:latest
+
+    # buildx 이용한 멀티 플랫폼 빌드
+    docker buildx build  --platform linux/amd64,linux/arm64  -t <your-dockerhub-id>/<image-name> --push .
     
     ```

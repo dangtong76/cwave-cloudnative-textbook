@@ -375,11 +375,7 @@ Ingress는 클러스터 외부에서 클러스터 내부 서비스로 HTTP/HTTPS
 
 ### - Ingress Controller 확인
 ```bash
-# Ingress Controller 확인
-kubectl get pods -n ingress-nginx
-
-# 또는 다른 네임스페이스에서 확인
-kubectl get pods -A | grep ingress
+kubectl get deploy -n kube-system
 ```
 
 ### - 기본 Ingress 예제
@@ -404,7 +400,7 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: nginx:1.8.9
+        image: nginx
         ports:
         - containerPort: 80
 ```
@@ -426,12 +422,21 @@ spec:
 #### 3. Ingress 생성
 ```yaml
 apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: alb-ingress-class
+spec:
+  controller: ingress.k8s.aws/alb
+---
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: nginx-ingress
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
 spec:
+  ingressClassName: "alb-ingress-class"
   rules:
   - host: nginx.example.com
     http:
@@ -456,6 +461,7 @@ kubectl apply -f nginx-ingress.yaml
 
 #### 2. Ingress 상태 확인
 ```bash
+aws elbv2 describe-load-balancers
 kubectl get ingress
 kubectl describe ingress nginx-ingress
 ```
@@ -463,19 +469,20 @@ kubectl describe ingress nginx-ingress
 #### 3. 접속 테스트
 ```bash
 # Ingress IP 확인
-kubectl get ingress nginx-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+kubectl run test-dns --image=busybox:1.28 --rm -it --restart=Never -- nslookup k8s-default-nginxing-d8df56bf3a-1927562401.ap-northeast-2.elb.amazonaws.com
 
 # 호스트 파일에 도메인 추가 (로컬 테스트용)
-echo "$(kubectl get ingress nginx-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}') nginx.example.com" >> /etc/hosts
+echo "<Ingress-Public-IP> nginx.example.com" >> /etc/hosts
 
 # 접속 테스트
-curl -H "Host: nginx.example.com" http://$(kubectl get ingress nginx-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+curl -H "nginx.example.com" http://nginx.example.com
 ```
 
 ### - 경로 기반 라우팅 Ingress
 
 #### 1. 여러 서비스 생성
 ```yaml
+# app1-deploy.yml
 # app1 서비스
 apiVersion: apps/v1
 kind: Deployment
@@ -493,10 +500,11 @@ spec:
     spec:
       containers:
       - name: app1
-        image: nginx:1.8.9
+        image: nginx
         ports:
         - containerPort: 80
 ---
+# app1-svc.yml
 apiVersion: v1
 kind: Service
 metadata:
@@ -510,6 +518,7 @@ spec:
 ```
 
 ```yaml
+# app2-deploy.yml
 # app2 서비스
 apiVersion: apps/v1
 kind: Deployment
@@ -531,6 +540,7 @@ spec:
         ports:
         - containerPort: 80
 ---
+# app2-svc.yml
 apiVersion: v1
 kind: Service
 metadata:
@@ -546,24 +556,37 @@ spec:
 #### 2. 경로 기반 Ingress
 ```yaml
 apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: alb-ingress-class
+spec:
+  controller: ingress.k8s.aws/alb
+---
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: path-based-ingress
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/rewrite-target: /
 spec:
+  ingressClassName: "alb-ingress-class"
   rules:
-  - host: example.com
+  - host: nginx.example.com
     http:
       paths:
-      - path: /app1
+      - path: /
         pathType: Prefix
         backend:
           service:
             name: app1-service
             port:
               number: 80
-      - path: /app2
+  - host: apache.example.com
+    http:
+      paths:
+      - path: /
         pathType: Prefix
         backend:
           service:
@@ -572,6 +595,38 @@ spec:
               number: 80
 ```
 
+
+#### 3. 접속 테스트
+
+```bash
+# Ingress 상태 확인
+```bash
+aws elbv2 describe-load-balancers
+```
+# Ingress domain 확인
+```bash
+kubectl get ingress
+```
+
+# Ingress IP 확인
+```bash
+kubectl run test-dns --image=busybox:1.28 --rm -it --restart=Never -- nslookup <ingress-domain>
+```
+
+# 호스트 파일에 도메인 추가 (로컬 테스트용)
+```bash
+echo "<Ingress-Public-IP> nginx.example.com apache.example.com" >> /etc/hosts
+```
+
+# 접속 테스트
+```bash
+curl -H "Host: nginx.example.com" http://nginx.example.com/
+
+curl -H "Host: apache.example.com" http://apache.example.com/
+```
+
+
+
 ### - TLS/HTTPS Ingress
 
 #### 1. TLS Secret 생성
@@ -579,7 +634,7 @@ spec:
 # 자체 서명 인증서 생성
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout tls.key -out tls.crt \
-  -subj "/CN=example.com/O=example.com"
+  -subj "/CN=vhost.example.com/O=example.com"
 
 # Kubernetes Secret 생성
 kubectl create secret tls tls-secret --key tls.key --cert tls.crt
@@ -594,7 +649,7 @@ metadata:
 spec:
   tls:
   - hosts:
-    - example.com
+    - vhost.example.com
     secretName: tls-secret
   rules:
   - host: example.com
@@ -723,8 +778,9 @@ Headless Service는 ClusterIP가 없는 서비스로, DNS 조회 시 모든 Pod�
 
 ### - Headless Service 생성
 
-#### 1. StatefulSet 생성 (Headless Service와 함께 사용)
+- StatefulSet 생성 (Headless Service와 함께 사용)
 ```yaml
+# nginx-sts.yml
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -742,14 +798,15 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: nginx:1.8.9
+        image: nginx
         ports:
         - containerPort: 80
           name: web
 ```
 
-#### 2. Headless Service 생성
+- Headless Service 생성
 ```yaml
+# headless-svc.yml
 apiVersion: v1
 kind: Service
 metadata:
@@ -767,19 +824,18 @@ spec:
 
 ### - Headless Service 테스트
 
-#### 1. 리소스 생성
+- 리소스 생성
 ```bash
 kubectl apply -f statefulset.yaml
 kubectl apply -f headless-service.yaml
 ```
 
-#### 2. Pod 상태 확인
+- Pod 상태 확인
 ```bash
-kubectl get pods -l app=nginx
-kubectl get svc nginx
+kubectl get po,svc
 ```
 
-#### 3. DNS 조회 테스트
+- DNS 조회 테스트
 ```bash
 # 임시 Pod 생성하여 DNS 테스트
 kubectl run test-dns --image=busybox:1.28 --rm -it --restart=Never -- nslookup nginx
@@ -790,7 +846,7 @@ kubectl run test-dns --image=busybox:1.28 --rm -it --restart=Never -- sh
 # exit
 ```
 
-#### 4. 개별 Pod DNS 조회
+- 개별 Pod DNS 조회
 ```bash
 # 특정 Pod의 DNS 이름으로 조회
 kubectl run test-dns --image=busybox:1.28 --rm -it --restart=Never -- nslookup web-0.nginx
@@ -800,8 +856,9 @@ kubectl run test-dns --image=busybox:1.28 --rm -it --restart=Never -- nslookup w
 
 ### - 일반 Service vs Headless Service 비교
 
-#### 일반 Service (ClusterIP)
+- 일반 Service 생성 (ClusterIP)
 ```yaml
+# plain-svc.yml
 apiVersion: v1
 kind: Service
 metadata:
@@ -814,30 +871,15 @@ spec:
     targetPort: 80
 ```
 
-#### Headless Service
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: nginx-headless
-spec:
-  clusterIP: None  # 핵심 차이점
-  selector:
-    app: nginx
-  ports:
-  - port: 80
-    targetPort: 80
-```
-
 ### - DNS 조회 결과 비교
 
-#### 일반 Service DNS 조회
+- 일반 Service DNS 조회
 ```bash
 kubectl run test-dns --image=busybox:1.28 --rm -it --restart=Never -- nslookup nginx-clusterip
 # 결과: 단일 IP 주소 반환 (Service의 ClusterIP)
 ```
 
-#### Headless Service DNS 조회
+- Headless Service DNS 조회
 ```bash
 kubectl run test-dns --image=busybox:1.28 --rm -it --restart=Never -- nslookup nginx-headless
 # 결과: 모든 Pod의 IP 주소 반환
@@ -854,6 +896,7 @@ kubectl run test-dns --image=busybox:1.28 --rm -it --restart=Never -- nslookup n
 - 포트: 6379
 
 {{< answer >}}
+# redis-sfs-svc.yml
 # StatefulSet
 apiVersion: apps/v1
 kind: StatefulSet
@@ -876,7 +919,7 @@ spec:
         ports:
         - containerPort: 6379
           name: redis
-
+---
 # Headless Service
 apiVersion: v1
 kind: Service

@@ -1250,7 +1250,9 @@ ENTRYPOINT ["node", "app.js"]
 ```
 
 ```bash
-docker build <Docker-ID>/nodejs:sfs .
+
+docker build <Docker-ID>/nodejs:sfs . --push
+docker buildx build  --platform linux/amd64,linux/arm64  -t <Docker-ID>/nodejs:sfs . --push
 docker login -u <Docker-ID>
 docker push <Docker-ID>/nodejs:sfs
 ```
@@ -1295,6 +1297,13 @@ spec:
       storageClassName: gp2
 ```
 
+```bash
+kubectl apply -f ./sts.yml
+```
+
+```bash
+kubectl get po -w
+```
 
 ### - LoadBalancer 생성
 ```yml
@@ -1309,9 +1318,37 @@ metadata:
       service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
 spec:
     type: LoadBalancer
+    sessionAffinity: None
     ports:
     - port: 80
       targetPort: 8080
     selector:
         app: nodejs-sfs
 ```
+
+```bash
+kubectl apply -f ./lb.yml
+```
+- 서비스 확인
+```bash
+kubectl get svc
+```
+
+- 로드밸런서 활성 상태 확인 (State 항목 확인)
+```bash
+aws elbv2 describe-load-balancers
+```
+
+- 데이타 조회
+```bash
+curl http://<public-domain>
+```
+- 데이터 입력
+```bash
+curl -X POST -d "hi, my name is dangtong-1" <public-domain>
+curl -X POST -d "hi, my name is dangtong-2" <public-domain>
+curl -X POST -d "hi, my name is dangtong-3" <public-domain>
+curl -X POST -d "hi, my name is dangtong-4" <public-domain>
+curl -X POST -d "hi, my name is dangtong-5" <public-domain>
+```
+데이터 입력을 반복하에 두개 노드 모드에 데이터를 모두 저장 합니다. 양쪽 노드에 어떤 데이터가 입력 되었는지 기억 하고 다음 단계로 넘어 갑니다.
