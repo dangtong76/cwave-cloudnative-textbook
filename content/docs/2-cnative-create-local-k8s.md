@@ -1,5 +1,5 @@
 ---
-title: "😎 2. 로컬 K8S 클러스터 생성"
+title: "🖥️ 2. 로컬 K8S 클러스터 생성"
 weight: 2
 description: ""
 icon: "article"

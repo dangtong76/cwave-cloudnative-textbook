@@ -168,3 +168,9 @@ draft: false
     ```bash
     # 애플리케이션 실행
     ./gradlew bootRun
+
+6. Docker 명령어
+    ```bash
+    docker manifest inspect dangtong76/cicd-devops-ide:latest
+    
+    ```

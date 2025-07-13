@@ -303,3 +303,7 @@ i {
 .docs-content .main-content code {
   margin-bottom: 1.2rem; // 필요에 따라 값 조절
 }
+
+.docs-content .main-content pre code {
+    padding: 0 2.5rem 0.5rem 2.5rem;
+}

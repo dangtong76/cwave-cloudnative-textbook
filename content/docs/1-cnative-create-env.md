@@ -1,5 +1,5 @@
 ---
-title: "💁 1. 모든것의 시작 - 환경설정"
+title: "🎬 1. 모든것의 시작 - 환경설정"
 weight: 1
 date: 2025-07-09
 draft: false
@@ -14,6 +14,10 @@ draft: false
 - **컨테이너 런타임**
 - **IDE 컨테이너 실행**
 
+## 컨테이너 정리하고 시작하기
+{{< embed-pdf url="/pdfs/what_container.pdf" >}}
+
+<br><br>
 ## 1. 로컬 개발도구 설치하기
 
 ### - Visual Studio Code 설치
@@ -124,8 +128,16 @@ gh auth login
 
 VSCode 에서 Manage () → settings → editor.tab 으로 검색해서 → Editor: Tab Size 를 2로 설정
 
-
-## 3. 웹 IDE 개발환경 구성도
+## 3. 웹 IDE 폴더 구조
+```
+devops-cicd-apps/
+├── infra/
+│   ├── cwave-aws-eks/
+│   └── cwave-local-k8s/
+├── labs/
+└── .gitignore
+```
+## 4. 웹 IDE 개발환경 구성도
    
    아래는 IDE 컨테이너 환경에 대한 슬라이드 입니다. 
    <iframe src="https://docs.google.com/presentation/d/e/2PACX-1vRwGw0Fcyu00fiL6wtdmW7KNxcaEqu1uT5xZ8Aa_7Wgo409F3qZJwfkgot8983ZQ7Tc_M6r982N8S0p/embed?start=false&loop=false&delayms=3000" frameborder="0" width="960" height="569" allowfullscreen="true" mozallowfullscreen="true" webkitallowfullscreen="true"></iframe>
