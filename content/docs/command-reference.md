@@ -1,5 +1,5 @@
 ---
-title: "Appendix - 명령어 모음"
+title: "👉 Appendix - 명령어 모음"
 weight: 999
 date: 2025-02-02
 draft: false
