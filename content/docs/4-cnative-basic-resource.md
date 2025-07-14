@@ -5,7 +5,7 @@ date: 2025-02-02
 draft: false
 ---
 
-{{< embed-pdf url="/pdfs/k8s-basic.pdf" >}}
+{{< embed-pdf url="/cwave-cloudnative-textbook/pdfs/k8s-basic.pdf" >}}
 <br><br>
 ## 1. Pod
 {{< embed-pdf url="/pdfs/pod.pdf" >}}
