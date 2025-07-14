@@ -75,10 +75,10 @@ kubectl logs nginx-pod
 apiVersion: v1
 kind: Pod
 metadata:
-name: my-redis
+  name: my-redis
 spec:
-containers:
-- name: redis
+  containers:
+  - name: redis
     image: redis:7.2
     ports:
     - containerPort: 6379
