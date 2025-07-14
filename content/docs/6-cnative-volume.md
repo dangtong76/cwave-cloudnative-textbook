@@ -1,10 +1,10 @@
 ---
-title: "💾 6. 볼룸"
+title: "💾 6. 볼륨"
 weight: 6
 date: 2025-03-18
 draft: false
 ---
-{{< embed-pdf url="/pdfs/volume.pdf" >}}
+{{< embed-pdf url="/cwave-cloudnative-textbook/pdfs/volume.pdf" >}}
 
 <br><br>
 ## 1. EmptyDir

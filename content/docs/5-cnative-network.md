@@ -7,7 +7,7 @@ draft: false
 
 
 ## 1. 네티워크 서비스 개념
-{{< embed-pdf url="/pdfs/Service.pdf" >}}
+{{< embed-pdf url="/cwave-cloudnative-textbook/pdfs/Service.pdf" >}}
 <br><br>
 
 ## 2. Telepresense 설치
