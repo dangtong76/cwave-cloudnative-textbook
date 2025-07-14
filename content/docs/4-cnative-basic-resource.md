@@ -8,7 +8,7 @@ draft: false
 {{< embed-pdf url="/cwave-cloudnative-textbook/pdfs/k8s-basic.pdf" >}}
 <br><br>
 ## 1. Pod
-{{< embed-pdf url="/pdfs/pod.pdf" >}}
+{{< embed-pdf url="/cwave-cloudnative-textbook/pdfs/pod.pdf" >}}
 
 아래와 같이 goapp.yaml 파일을 만듭니다.
 ### - Pod 생성 해보기
@@ -99,7 +99,7 @@ containers:
 5. 
 
 ## 2. 라벨(Label)과 어노테니션(annotaion)
-{{< embed-pdf url="/pdfs/Label_Annotation.pdf" >}}
+{{< embed-pdf url="/cwave-cloudnative-textbook/pdfs/Label_Annotation.pdf" >}}
 <br><br>
 ### - 라벨(label)
 
@@ -215,7 +215,7 @@ kubectl describe po apache-pod
 
 ## 3. Namespace
 
-{{< embed-pdf url="/pdfs/namespace.pdf" >}}
+{{< embed-pdf url="/cwave-cloudnative-textbook/pdfs/namespace.pdf" >}}
 <br><br>
 ### - 현재 네임스페이스 조회
 
@@ -302,7 +302,7 @@ kubectl delete ns first-namespace second-namespace
 
 <br><br>
 ## 4. Probe
-{{< embed-pdf url="/pdfs/Probe.pdf" >}}
+{{< embed-pdf url="/cwave-cloudnative-textbook/pdfs/Probe.pdf" >}}
 <br><br>
 ### - Liveness Probe 테스트
 컨테이너가 살아있는지 확인하고, 실패 시 컨테이너를 재시작합니다.
@@ -583,7 +583,7 @@ kubectl delete po liveness-demo
 
 
 ## 5. Replication Controller
-{{< embed-pdf url="/pdfs/rc.pdf" >}}
+{{< embed-pdf url="/cwave-cloudnative-textbook/pdfs/rc.pdf" >}}
 <br><br>
 ### - Replication Controller 생성
 ```yml
@@ -689,7 +689,7 @@ kubectl delete rc goapp-rc
 
 
 ## 6. Replica Set
-{{< embed-pdf url="/pdfs/rs.pdf" >}}
+{{< embed-pdf url="/cwave-cloudnative-textbook/pdfs/rs.pdf" >}}
 <br><br>
 
 ### - ReplicaSet 생성
@@ -872,7 +872,7 @@ kubectl get ds -o wide
 ```
 
 ## 8. Deployment
-{{< embed-pdf url="/pdfs/deployment.pdf" >}}
+{{< embed-pdf url="/cwave-cloudnative-textbook/pdfs/deployment.pdf" >}}
 <br><br>
 
 Deployment는 Pod와 ReplicaSet에 대한 선언적 업데이트를 제공하며, 애플리케이션의 배포와 업데이트를 관리합니다.
