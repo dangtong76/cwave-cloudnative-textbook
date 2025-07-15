@@ -1,5 +1,5 @@
 ---
-title: "☁️ 3. Terraform 이용한 EKS 생성"
+title: "☁️ 03. Terraform 이용한 EKS 생성"
 weight: 3
 date: 2025-02-02
 draft: false

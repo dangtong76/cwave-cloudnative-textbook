@@ -1,5 +1,5 @@
 ---
-title: "💾 6. 볼륨"
+title: "💾 06. 볼륨"
 weight: 6
 date: 2025-03-18
 draft: false

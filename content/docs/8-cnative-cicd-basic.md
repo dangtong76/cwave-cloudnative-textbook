@@ -1,5 +1,5 @@
 ---
-title: "🤖 8. CICD 기본"
+title: "🤖 08. CICD 기본"
 weight: 8
 date: 2025-03-18
 draft: false
