@@ -296,11 +296,19 @@ kubectl get po,rs,svc
 - 노드 조회
 ```bash
 kubectl get no -o wide
-```
 
-- 서비스 접속
+```
+로컬 쿠버네티스 노드의 호스트 IP 확인하기
 ```bash
-curl http://<node-ip>:30123
+docker inspect kind
+```
+- 서비스 접속 (여러번 수행)
+```bash
+curl http://<host-ip>:30123
+curl http://<host-ip>:30123
+curl http://<host-ip>:30123
+curl http://<host-ip>:30123
+curl http://<host-ip>:30123
 ```
 
 
