@@ -1196,7 +1196,7 @@ kubectl delete deployment httpd-deployment
 ```
 
 ## 9. StatefulSet
-{{< embed-pdf url="/cwave-cloudnative-textbook/pdfs/statefulset.pdf" >}}
+{{< embed-pdf url="/cwave-cloudnative-textbook/pdfs/tatefulset.pdf" >}}
 <br><br>
 StatefulSet 은 디스크를 사용하기 때문에 스토리지를 학습한 후에 배우도록 할께요!
 
