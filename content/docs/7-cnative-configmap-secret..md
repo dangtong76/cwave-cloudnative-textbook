@@ -480,3 +480,199 @@ Pod가 정상적으로 환경변수를 받았는지 확인하세요.
 kubectl exec -it env-checker -- env | grep APP_
 {{</answer>}}
 ## 2. Secret
+
+### 2.1 Secret이란?
+- Secret은 비밀번호, OAuth 토큰, ssh key 등 민감한 정보를 저장하는 Kubernetes 오브젝트입니다.
+- ConfigMap과 달리 base64 인코딩을 사용하여 데이터를 저장합니다.
+- Pod에서 환경변수, 볼륨 등으로 주입하여 사용할 수 있습니다.
+
+---
+
+### 2.2 Secret 생성 방법
+
+#### 1) kubectl 명령어로 생성
+
+```bash
+kubectl create secret generic my-secret \
+  --from-literal=username=admin \
+  --from-literal=password=1234
+```
+
+#### 2) YAML 파일로 생성
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+type: Opaque
+data:
+  username: YWRtaW4=      # admin (base64 인코딩)
+  password: MTIzNA==      # 1234 (base64 인코딩)
+```
+
+- base64 인코딩 방법:
+  ```bash
+  echo -n 'admin' | base64      # YWRtaW4=
+  echo -n '1234' | base64       # MTIzNA==
+  ```
+
+---
+
+### 2.3 Secret 사용 예시
+
+#### 1) 환경변수로 주입
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: secret-env-pod
+spec:
+  containers:
+    - name: mycontainer
+      image: nginx
+      env:
+        - name: USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: my-secret
+              key: username
+        - name: PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: my-secret
+              key: password
+```
+
+#### 2) 볼륨으로 주입
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: secret-volume-pod
+spec:
+  containers:
+    - name: mycontainer
+      image: nginx
+      volumeMounts:
+        - name: secret-volume
+          mountPath: "/etc/secret"
+          readOnly: true
+  volumes:
+    - name: secret-volume
+      secret:
+        secretName: my-secret
+```
+
+---
+
+### [연습문제] 2-1. Secret 생성 및 사용
+
+아래 조건을 만족하는 Secret을 생성하는 YAML 파일을 작성하세요.
+- username: testuser
+- password: testpw
+
+그리고 위에서 만든 Secret을 Pod에서 환경변수로 주입하는 예시 YAML을 작성하세요.
+
+{{<answer>}}
+# 1. Secret YAML
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-test-secret
+type: Opaque
+data:
+  username: dGVzdHVzZXI=   # testuser
+  password: dGVzdHB3       # testpw
+# (base64 인코딩 참고: echo -n 'testuser' | base64 → dGVzdHVzZXI=, echo -n 'testpw' | base64 → dGVzdHB3 )
+{{</answer>}}
+
+{{<answer>}}
+# 2. Pod에서 환경변수로 사용
+apiVersion: v1
+kind: Pod
+metadata:
+  name: secret-env-pod
+spec:
+  containers:
+    - name: mycontainer
+      image: nginx
+      env:
+        - name: USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: my-test-secret
+              key: username
+        - name: PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: my-test-secret
+              key: password
+{{</answer>}}
+
+### [연습문제] 2-2. MySQL DB Secret 생성 및 사용
+
+아래 조건을 만족하는 Secret을 생성하는 YAML 파일을 작성하세요.
+- MYSQL_USER: user1
+- MYSQL_PASSWORD: pw1234
+- MYSQL_ROOT_PASSWORD: rootpw9876
+- MYSQL_DATABASE: mydb
+
+그리고 위에서 만든 Secret을 Pod에서 환경변수로 주입하는 예시 YAML을 작성하세요.
+
+{{<answer>}}
+# 1. MySQL Secret YAML
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-secret
+  labels:
+    app: mysql
+  # type은 Opaque가 기본값
+  # type: Opaque
+  # 아래 값들은 base64 인코딩 필요
+  # echo -n 'user1' | base64 -> dXNlcjE=
+  # echo -n 'pw1234' | base64 -> cHcxMjM0
+  # echo -n 'rootpw9876' | base64 -> cm9vdHB3OTg3Ng==
+  # echo -n 'mydb' | base64 -> bXlkYg==
+data:
+  MYSQL_USER: dXNlcjE=
+  MYSQL_PASSWORD: cHcxMjM0
+  MYSQL_ROOT_PASSWORD: cm9vdHB3OTg3Ng==
+  MYSQL_DATABASE: bXlkYg==
+{{</answer>}}
+
+{{<answer>}}
+# 2. Pod에서 환경변수로 사용
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mysql-secret-env-pod
+spec:
+  containers:
+    - name: mysql-test
+      image: mysql:8.0
+      env:
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: MYSQL_USER
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: MYSQL_PASSWORD
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: MYSQL_ROOT_PASSWORD
+        - name: MYSQL_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: MYSQL_DATABASE
+{{</answer>}}

@@ -157,7 +157,20 @@ draft: false
 
     # aws 로드밸런서 상태 확인
     aws elbv2 describe-load-balancers
+
+    # Deploy Agent 로그 확인
+    tail -100 /var/log/aws/codedeploy-agent/codedeploy-agent.log
+
+    # Deploy Agent 상태 확인
+    sudo systemctl status codedeploy-agent
+    
+    # Deploy Agent 재가동
+    sudo systemctl restart codedeploy-agent
+
     ``` 
+
+
+
 5. Hugo 명령어
 
     ```bash

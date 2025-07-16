@@ -96,14 +96,13 @@ ssh 배포를 위한 키 생성
         key_name        = aws_key_pair.ec2_key.key_name # AWS에서 생성한 SSH 키 적용
         security_groups = [aws_security_group.nginx_sg.name]
 
-        # user_data 변경시 무조건 인스턴스를 다시 만들게 하기 위한 옵셤
-        metadata_options {
-            http_tokens = "required"
-        }
         # 인스턴스를 다시 만들때 빠르게 교체 하기 위한 옵션
         lifecycle {
             create_before_destroy = true
         }
+
+        # User 데이터 변경시에 인스턴스 재생성 옵션
+        user_data_replace_on_change = true
 
         # EC2 시작 시 Nginx 설치 및 실행을 위한 User Data
         user_data = <<-EOF
@@ -114,7 +113,8 @@ ssh 배포를 위한 키 생성
                     systemctl enable nginx
                     EOF
         tags = {
-        Name = "nginx-server"
+          Name = "nginx-server"
+          Environment = "Production"
         }
     }
 
@@ -209,7 +209,8 @@ ssh 배포를 위한 키 생성
 
 2. 파일명 : .github/workflows/simple-web-ec2-workflow.yaml 작성
       ```yaml
-      name: Deploy Simple-Web to AWS EC2 using AWS CLI
+      ## .github/workflows/ec2-deploy-tough.yml
+      name: AWS EC2-Deploy with Tough
       on:
         push:
           branches:
@@ -298,14 +299,13 @@ Codedeploy Agent를 설치 후 서비스를 시작합니다.
     vpc_security_group_ids = [aws_security_group.nginx_sg.id]
     iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
      
-    # user_data 변경시 무조건 인스턴스를 다시 만들게 하기 위한 옵셤
-    metadata_options {
-        http_tokens = "required"
-    }
     # 인스턴스를 다시 만들때 빠르게 교체 하기 위한 옵션
     lifecycle {
         create_before_destroy = true
     }
+
+    # User 데이터 변경시에 인스턴스 재생성 옵션
+    user_data_replace_on_change = true
 
     # EC2 시작 시 Nginx 설치 및 실행을 위한 User Data
     user_data = <<-EOF
@@ -390,12 +390,20 @@ AWS_BUCKET
 ### 9. Github Action Workflow 작성하기
 AWS CodeDploy를 사용하려면 appspec.yml 반드시 있어야 합니다.
 서비스를 중지,시작 하기 위한 스크립트는 필요하면 작성합니다.
+1. 기존 워크 플로우 비활성화
+```bash
+gh workflow list
+```
 
-1. workflow 파일 작성
+```bash
+gh workflow disable
+```
+
+1. 새로운 workflow 파일 작성
 
     ```yml
-    ## ec2 s3 deploy12
-    name: Deploy to AWS
+    ## .github/workflows/ec2-deploy-smart.yml
+    name: AWS EC2-Deploy with Smart
     on:
       push:
         branches: [main]
@@ -421,7 +429,7 @@ AWS CodeDploy를 사용하려면 appspec.yml 반드시 있어야 합니다.
 
           - name: 4.S3 아티팩트 업로드
             run: |
-              aws s3 cp deploy.zip s3://${{ secrets.S3_BUCKET }}/deploy.zip
+              aws s3 cp deploy.zip s3://${{ secrets.AWS_BUCKET }}/deploy.zip
 
           - name: 5.현재 진행중인 AWS Deploy ID 가져오고 중단 시킨다. 
             run: |
@@ -447,7 +455,7 @@ AWS CodeDploy를 사용하려면 appspec.yml 반드시 있어야 합니다.
               DEPLOYMENT_ID=$(aws deploy create-deployment \
                 --application-name simple-web-content \
                 --deployment-group-name simple-web-deploy-group \
-                --s3-location bucket=${{ secrets.S3_BUCKET }},key=deploy.zip,bundleType=zip \
+                --s3-location bucket=${{ secrets.AWS_BUCKET }},key=deploy.zip,bundleType=zip \
                 --output text \
                 --query 'deploymentId')
               #echo "::set-output name=deployment_id::$DEPLOYMENT_ID"
@@ -464,6 +472,7 @@ AWS CodeDploy를 사용하려면 appspec.yml 반드시 있어야 합니다.
     scripts/before_install.sh
     ```bash
     #!/bin/bash
+    # 기존 파일 삭제
     if [ -d /usr/share/nginx/html ]; then
         rm -rf /usr/share/nginx/html/*
     fi
@@ -471,42 +480,47 @@ AWS CodeDploy를 사용하려면 appspec.yml 반드시 있어야 합니다.
     scripts/after_install.sh
     ```bash
     #!/bin/bash
+    # 파일 권한 변경
     chmod -R 755 /usr/share/nginx/html
     chown -R nginx:nginx /usr/share/nginx/html
+    # 웹서버 재시작
     systemctl restart nginx
     ```
 3. appspec.yml 등록하기
     ```
-    version: 0.0
-    os: linux
-    files:
-      - source: /
-        destination: /usr/share/nginx/html/
-        overwrite: true
-    permissions:
-      - object: /usr/share/nginx/html
-        pattern: "**"
-        owner: nginx
-        group: nginx
-        mode: 755
+    version: 0.0                # AppSpec 파일 버전
+    os: linux                   # 배포 대상 운영체제
+
+    files:                      # 복사할 파일 및 디렉터리 목록
+      - source: /               # 소스 디렉터리(전체)
+        destination: /usr/share/nginx/html/   # 복사 대상 경로
+        overwrite: true         # 기존 파일 덮어쓰기 허용
+
+    permissions:                # 파일 및 디렉터리 권한 설정
+      - object: /usr/share/nginx/html         # 권한을 적용할 디렉터리
+        pattern: "**"                         # 모든 하위 디렉터리 포함
+        owner: nginx                          # 소유자
+        group: nginx                          # 그룹
+        mode: 755                             # 디렉터리 권한
         type:
-          - directory
-      - object: /usr/share/nginx/html
-        pattern: "**/*"
-        owner: nginx
-        group: nginx
-        mode: 644
+          - directory                         # 디렉터리에만 적용
+      - object: /usr/share/nginx/html         # 권한을 적용할 디렉터리
+        pattern: "**/*"                       # 모든 파일 포함
+        owner: nginx                          # 소유자
+        group: nginx                          # 그룹
+        mode: 644                             # 파일 권한
         type:
-          - file
-    hooks:
-      BeforeInstall:
-        - location: scripts/before_install.sh
-          timeout: 300
-          runas: root
-      AfterInstall:
-        - location: scripts/after_install.sh
-          timeout: 300
-          runas: root
+          - file                              # 파일에만 적용
+
+    hooks:                                    # 배포 라이프사이클 훅
+      BeforeInstall:                          # 설치 전 실행할 스크립트
+        - location: scripts/before_install.sh # 스크립트 경로
+          timeout: 300                        # 타임아웃(초)
+          runas: root                         # 실행 사용자
+      AfterInstall:                           # 설치 후 실행할 스크립트
+        - location: scripts/after_install.sh  # 스크립트 경로
+          timeout: 300                        # 타임아웃(초)
+          runas: root                         # 실행 사용자
     ```
 3. 리포지토리 동기화 하기
 
@@ -523,151 +537,29 @@ AWS CodeDploy를 사용하려면 appspec.yml 반드시 있어야 합니다.
     ```
 ---
 ## 3. Simple Web 완벽하게 배포 하기
-### 1. 폴더 생성
-```bash
-mkdir -p xinfra/aws-ec2-single-greate
-```
-### 2. Gitignore 작성 
-파일명 : xinfra/aws-ec2-single-greate/.gitignore 파일 작성
-```gitignore
-.terraform
-.terraform.lock.hcl
-terraform.tfstate
-.DS_Store
-terraform.tfstate.backup
-```
-### 3. 프로바이더 작성 
-파일명 : xinfra/aws-ec2-single-greate/00_provider.tf 작성
+
+
+
+### 1. EC2 수정
 ```terraform
-provider "aws" {
-region = "ap-northeast-2" # 사용할 AWS 리전
-} 
-```
-### 4. VPC 생성
-파일명 : xinfra/aws-ec2-single-greate/10_vpc.tf 작성
-```terraform
-# VPC 생성
-resource "aws_vpc" "dangtong-vpc" {
-  cidr_block           = "10.0.0.0/16" 
-  enable_dns_hostnames = true
-  enable_dns_support   = true
-
-  tags = {
-    Name = "dangtong-vpc"
-  }
-}
-# 퍼블릭 서브넷 생성
-resource "aws_subnet" "dangtong-vpc-public-subnet" {
-  for_each = {
-    a = { cidr = "10.0.1.0/24", az = "ap-northeast-2a" }
-    b = { cidr = "10.0.2.0/24", az = "ap-northeast-2b" }
-    c = { cidr = "10.0.3.0/24", az = "ap-northeast-2c" }
-    d = { cidr = "10.0.4.0/24", az = "ap-northeast-2d" }
-  }
-
-  vpc_id                  = aws_vpc.dangtong-vpc.id
-  cidr_block              = each.value.cidr
-  availability_zone       = each.value.az
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name = "dangtong-vpc-public-subnet-${each.key}"
-  }
-}
-
-# 인터넷 게이트웨이 생성
-resource "aws_internet_gateway" "dangtong-igw" {
-  vpc_id = aws_vpc.dangtong-vpc.id
-
-  tags = {
-    Name = "dangtong-igw"
-  }
-}
-
-# 라우팅 테이블 생성
-resource "aws_route_table" "dangtong-vpc-public-rt" {
-  vpc_id = aws_vpc.dangtong-vpc.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.dangtong-igw.id
-  }
-
-  tags = {
-    Name = "dangtong-vpc-public-rt"
-    
-  }
-}
-
-resource "aws_route_table_association" "dangtong-vpc-public-rt" {
-  for_each = {
-    a = aws_subnet.dangtong-vpc-public-subnet["a"].id
-    b = aws_subnet.dangtong-vpc-public-subnet["b"].id
-    c = aws_subnet.dangtong-vpc-public-subnet["c"].id
-    d = aws_subnet.dangtong-vpc-public-subnet["d"].id
-  }
-  
-  subnet_id      = each.value
-  route_table_id = aws_route_table.dangtong-vpc-public-rt.id
-}
-
-```
-### 5. Security Group 생성
-파일명 : xinfra/aws-ec2-single-greate/20_provider.tf 작성
-```terraform
-resource "aws_security_group" "nginx_sg" {
-  name_prefix = "nginx-sg"
-  vpc_id      = aws_vpc.dangtong-vpc.id 
-
-  ingress {
-    description = "Allow SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "Allow HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-```
-### 6. EC2 인스턴스 생성
-파일명 : xinfra/aws-ec2-single-greate/30_ec2.tf 작성
-```terraform
-# TLS 프라이빗 키 생성 (공개 키 포함)
-resource "tls_private_key" "ec2_private_key" {
-  algorithm = "RSA"
-  rsa_bits  = 2048
-}
-
-# AWS에서 키 페어 생성
-resource "aws_key_pair" "ec2_key_pair" {
-  key_name   = "ec2-key_pair" # AWS에서 사용할 키 페어 이름
-  public_key = tls_private_key.ec2_private_key.public_key_openssh
-}
-
+# EC2 인스턴스 생성
 resource "aws_instance" "nginx_instance" {
-  subnet_id = aws_subnet.dangtong-vpc-public-subnet["a"].id
-  ami             = "ami-08b09b6acd8d62254" # Amazon Linux 2 AMI (리전별로 AMI ID가 다를 수 있음)
-  instance_type   = "t2.micro"
-  key_name        = aws_key_pair.ec2_key_pair.key_name # AWS에서 생성한 SSH 키 적용
-  vpc_security_group_ids = [aws_security_group.nginx_sg.id]
-  iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
+    ami             = "ami-08b09b6acd8d62254" # Amazon Linux 2 AMI (리전별로 AMI ID가 다를 수 있음)
+    instance_type   = "t2.micro"
+    key_name        = aws_key_pair.ec2_key.key_name # AWS에서 생성한 SSH 키 적용
+    security_groups = [aws_security_group.nginx_sg.name]
 
-  # EC2 시작 시 Nginx 설치 및 실행을 위한 User Data
-  user_data = <<-EOF
+    # 작업 -> 보안 -> IAM 역할 수정 
+    iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
+
+    # 인스턴스를 다시 만들때 빠르게 교체 하기 위한 옵션
+    lifecycle {
+        create_before_destroy = true
+    }
+    # User 데이터 변경시에 인스턴스 재생성 옵션
+    user_data_replace_on_change = true
+    # EC2 시작 시 Nginx 설치 및 실행을 위한 User Data
+    user_data = <<-EOF
                 #!/bin/bash
                 yum update -y
 
@@ -688,28 +580,18 @@ resource "aws_instance" "nginx_instance" {
                 amazon-linux-extras install nginx1 -y
                 systemctl start nginx
                 systemctl enable nginx
+
+                # 재생성을 위한 에코
+                echo "1"
                 EOF
-  tags = {
-    Name        = "nginx-server"
-    Environment = "Production"
-  }
-}
-
-# 출력: EC2 인스턴스의 퍼블릭 IP 주소
-output "nginx_instance_public_ip" {
-  value       = aws_instance.nginx_instance.public_ip
-  description = "Public IP of the Nginx EC2 instance"
-}
-
-# 출력: SSH 접속에 사용할 Private Key
-output "ssh_private_key_pem" {
-  value       = tls_private_key.ec2_private_key.private_key_pem
-  description = "Private key for SSH access"
-  sensitive   = true
+    tags = {
+      Name = "nginx-server"
+      Environment = "Production"
+    }
 }
 ```
-### 7. IAM  생성
-파일명 : xinfra/aws-ec2-single-greate/40_iam.tf 작성
+### 2. IAM  생성
+파일명 : 400_iam.tf 작성 [추가]
 ```terraform
 # GitHub Actions용 IAM 역할 생성
 resource "aws_iam_role" "github_actions_role" {
@@ -811,9 +693,6 @@ resource "aws_iam_instance_profile" "ec2_profile" {
   role = aws_iam_role.ec2_codedeploy_role.name
 }
 
-# 현재 AWS 계정 ID를 가져오기 위한 데이터 소스
-data "aws_caller_identity" "current" {}
-
 # 출력: GitHub Actions 역할 ARN
 output "github_actions_role_arn" {
   value       = aws_iam_role.github_actions_role.arn
@@ -821,8 +700,8 @@ output "github_actions_role_arn" {
 }
 ```
 
-### 8. S3  생성
-파일명 : xinfra/aws-ec2-single-greate/50_s3.tf
+### 3. S3 신규 생성
+파일명 : 700_s3.tf [신규]
 ```terraform
 # S3 버킷 생성
 resource "aws_s3_bucket" "deploy_bucket" {
@@ -843,12 +722,12 @@ output "deploy_bucket_name" {
   description = "Name of the S3 bucket for deployments"
 }
 ```
-### 9. codedeploy 생성
-파일명 : xinfra/aws-ec2-single-greate/60_codedeploy.tf
+### 4. codedeploy 생성
+파일명 : 800_codedeploy.tf [신규]
 ```terraform
 # CodeDeploy 애플리케이션 생성
 resource "aws_codedeploy_app" "web_app" {
-  name = "simple-web-content"
+  name = "simple-web-content2"
 }
 
 # CodeDeploy 배포 그룹 생성
@@ -891,6 +770,103 @@ output "codedeploy_deployment_group_name" {
   value       = aws_codedeploy_deployment_group.web_deploy_group.deployment_group_name
   description = "Name of the CodeDeploy deployment group"
 } 
+```
+
+### 5. 워크플로우 Disable 및 Github 셋팅
+- 워크플로우 Disable
+
+```bash
+gh workflow disable
+```
+
+- Github Secret AWS_BUCKET 변경
+
+
+### 6. 신규 파이프라인 추가
+
+```yml
+## .github/workflows/ec2-deploy-smart.yml
+name: AWS EC2-Deploy with Perfect
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1.소스코드 다운로드 (simple-web)
+        uses: actions/checkout@v2
+
+      - name: 2.AWS CLI 접속정보 설정
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      - name: 3.아티팩트 만들기
+        run: |
+          pwd
+          zip -r deploy.zip ./*
+
+      - name: 4.S3 아티팩트 업로드
+        run: |
+          aws s3 cp deploy.zip s3://${{ secrets.AWS_BUCKET }}/deploy.zip
+
+      - name: 5.현재 진행중인 AWS Deploy ID 가져오고 중단 시킨다.
+        run: |
+          DEPLOYMENTS=$(aws deploy list-deployments \
+            --application-name simple-web-content2 \
+            --deployment-group-name simple-web-deploy-group \
+            --include-only-statuses "InProgress" \
+            --query 'deployments[]' \
+            --output text)
+
+          if [ ! -z "$DEPLOYMENTS" ]; then
+            for deployment in $DEPLOYMENTS; do
+              echo "Stopping deployment $deployment"
+              aws deploy stop-deployment --deployment-id $deployment
+            done
+            # 잠시 대기하여 취소가 완료되도록 함
+            sleep 10
+          fi
+
+      - name: 6. AWS Deploy를 통해 배포한다
+        id: deploy
+        run: |
+          DEPLOYMENT_ID=$(aws deploy create-deployment \
+            --application-name simple-web-content2 \
+            --deployment-group-name simple-web-deploy-group \
+            --s3-location bucket=${{ secrets.AWS_BUCKET }},key=deploy.zip,bundleType=zip \
+            --output text \
+            --query 'deploymentId')
+          #echo "::set-output name=deployment_id::$DEPLOYMENT_ID"
+          #echo "{name}=deployment_id" >> $GITHUB_OUTPUT
+          echo "deployment_id=${DEPLOYMENT_ID}" >> $GITHUB_OUTPUT
+
+      - name: Wait for deployment to complete
+        run: |
+          aws deploy wait deployment-successful --deployment-id ${{ steps.deploy.outputs.deployment_id }}
+```
+
+### 7. 소스 수정 및 배포
+simple-web/index.html
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Last</title>
+    <link rel="stylesheet" href="style.css" />
+    <link
+```
+
+- 커밋 및 Push
+```bash
+git commit -am "deploy perfect"
+git push origin main
 ```
 
 ## 4. Simple WEB 쿠버네티스에 메뉴얼 배포하기
