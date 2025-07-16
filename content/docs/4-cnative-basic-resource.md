@@ -1354,3 +1354,430 @@ curl -X POST -d "hi, my name is dangtong-4" <public-domain>
 curl -X POST -d "hi, my name is dangtong-5" <public-domain>
 ```
 데이터 입력을 반복하에 두개 노드 모드에 데이터를 모두 저장 합니다. 양쪽 노드에 어떤 데이터가 입력 되었는지 기억 하고 다음 단계로 넘어 갑니다.
+
+---
+
+## 10. StatefulSet 연습문제
+
+
+#### 연습문제용 네임스페이스 생성
+```bash
+kubectl create namespace statefulset-lab
+kubectl config set-context --current --namespace=statefulset-lab
+```
+
+---
+
+### 연습문제 1: 기본 StatefulSet 생성
+
+#### 문제
+아래 조건을 만족하는 StatefulSet을 생성하세요:
+
+
+{{< answer >}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: web
+spec:
+  serviceName: "nginx"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+          name: web
+        volumeMounts:
+        - name: www
+          mountPath: /usr/share/nginx/html
+  volumeClaimTemplates:
+  - metadata:
+      name: www
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: gp2
+      resources:
+        requests:
+          storage: 1Gi
+{{< /answer >}}
+
+#### 확인 명령어
+```bash
+# StatefulSet 상태 확인
+kubectl get statefulset
+
+# Pod 상태 확인
+kubectl get pods
+
+# PVC 확인 (AWS EBS 볼륨 확인)
+kubectl get pvc
+kubectl describe pvc www-web-0
+
+# EBS 볼륨 확인 (AWS CLI)
+aws ec2 describe-volumes --filters "Name=tag:kubernetes.io/cluster/*,Values=owned" --query 'Volumes[*].[VolumeId,Size,State]' --output table
+
+# Pod 이름 패턴 관찰
+kubectl get pods -l app=nginx
+
+# StorageClass 확인
+kubectl get storageclass
+kubectl describe storageclass gp2
+
+# 문제 해결: PVC 바인딩 상태 확인
+kubectl get pvc -o wide
+kubectl describe pvc www-web-0
+
+# EBS CSI Driver 상태 확인
+kubectl get pods -n kube-system | grep ebs-csi
+kubectl logs -n kube-system deployment/ebs-csi-controller
+
+# 노드에 EBS CSI Driver 설치 확인
+kubectl get pods -n kube-system | grep ebs-csi-node
+```
+
+#### 확인 사항
+- [ ] StatefulSet이 정상적으로 생성됨
+- [ ] Pod 이름이 `web-0`, `web-1`, `web-2` 패턴으로 생성됨
+- [ ] 각 Pod마다 고유한 PVC가 생성됨
+- [ ] Pod가 순서대로 생성됨 (0번부터 시작)
+
+
+### 연습문제 2: StatefulSet과 Headless Service 연동
+
+#### 문제
+기존 StatefulSet과 연동되는 Headless Service를 생성하고, 개별 Pod에 접근하는 방법을 확인하세요.
+
+**요구사항:**
+- Service 이름: nginx
+- 포트: 80
+- Headless Service (clusterIP: None)
+- Selector: app=nginx
+
+{{< answer >}}
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  ports:
+  - port: 80
+    name: web
+  clusterIP: None
+  selector:
+    app: nginx
+```
+{{< /answer >}}
+
+#### DNS 테스트 명령어
+```bash
+# Service 배포
+kubectl apply -f nginx-headless-service.yaml
+
+# DNS 조회 테스트
+kubectl run test-dns --image=busybox --rm -it --restart=Never -- nslookup nginx
+
+# 개별 Pod DNS 조회
+kubectl run test-pod-dns --image=busybox --rm -it --restart=Never -- nslookup web-0.nginx.statefulset-lab.svc.cluster.local
+kubectl run test-pod-dns --image=busybox --rm -it --restart=Never -- nslookup web-1.nginx.statefulset-lab.svc.cluster.local
+kubectl run test-pod-dns --image=busybox --rm -it --restart=Never -- nslookup web-2.nginx.statefulset-lab.svc.cluster.local
+
+
+```
+
+---
+
+### 연습문제 3: 영구 스토리지와 데이터 지속성
+
+#### 문제
+StatefulSet의 영구 스토리지 특성을 확인하고 데이터 지속성을 테스트하세요.
+
+#### 3-1. 데이터 쓰기 및 확인
+```bash
+# 각 Pod에 고유한 데이터 쓰기
+kubectl exec web-0 -- sh -c "echo 'Data from web-0 at $(date)' > /usr/share/nginx/html/index.html"
+kubectl exec web-1 -- sh -c "echo 'Data from web-1 at $(date)' > /usr/share/nginx/html/index.html"
+kubectl exec web-2 -- sh -c "echo 'Data from web-2 at $(date)' > /usr/share/nginx/html/index.html"
+
+# 각 Pod의 데이터 확인
+kubectl exec web-0 -- cat /usr/share/nginx/html/index.html
+kubectl exec web-1 -- cat /usr/share/nginx/html/index.html
+kubectl exec web-2 -- cat /usr/share/nginx/html/index.html
+```
+
+#### 3-2. Pod 재시작 후 데이터 지속성 확인
+```bash
+# web-0 Pod 삭제 (재시작 시뮬레이션)
+kubectl delete pod web-0
+
+# Pod 재생성 대기
+kubectl wait --for=condition=ready pod web-0
+
+# 데이터 지속성 확인
+kubectl exec web-0 -- cat /usr/share/nginx/html/index.html
+```
+
+#### 3-3. StatefulSet 스케일링 테스트
+```bash
+# StatefulSet을 5개로 확장
+kubectl scale statefulset web --replicas=5
+
+# 새로운 Pod들의 데이터 확인
+kubectl exec web-3 -- cat /usr/share/nginx/html/index.html
+kubectl exec web-4 -- cat /usr/share/nginx/html/index.html
+
+# 다시 3개로 축소
+kubectl scale statefulset web --replicas=3
+```
+
+
+---
+
+### 연습문제 4: 고급 StatefulSet 구성
+
+#### 문제
+환경변수, 리소스 제한, 헬스체크를 포함한 고급 StatefulSet을 구성하세요.
+
+**요구사항:**
+- StatefulSet 이름: web-advanced
+- Service 이름: nginx-advanced
+- 환경변수: NGINX_HOST, NGINX_PORT
+- 리소스 제한: CPU 500m, Memory 128Mi
+- Liveness Probe: HTTP GET /, 30초 초기지연, 10초 주기
+- Readiness Probe: HTTP GET /, 5초 초기지연, 5초 주기
+- PVC: www (1Gi), config (100Mi) - StorageClass: gp2
+
+{{< answer >}}
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: web-advanced
+spec:
+  serviceName: "nginx-advanced"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-advanced
+  template:
+    metadata:
+      labels:
+        app: nginx-advanced
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+          name: web
+        env:
+        - name: NGINX_HOST
+          value: "statefulset.example.com"
+        - name: NGINX_PORT
+          value: "80"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: www
+          mountPath: /usr/share/nginx/html
+        - name: config
+          mountPath: /etc/nginx/conf.d
+  volumeClaimTemplates:
+  - metadata:
+      name: www
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: gp2
+      resources:
+        requests:
+          storage: 1Gi
+  - metadata:
+      name: config
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: gp2
+      resources:
+        requests:
+          storage: 100Mi
+```
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-advanced
+  labels:
+    app: nginx-advanced
+spec:
+  ports:
+  - port: 80
+    name: web
+  clusterIP: None
+  selector:
+    app: nginx-advanced
+```
+{{< /answer >}}
+
+#### 배포 및 테스트
+```bash
+# 기존 StatefulSet 삭제
+kubectl delete statefulset web
+kubectl delete service nginx
+
+# 새로운 StatefulSet 배포
+kubectl apply -f advanced-statefulset.yaml
+kubectl apply -f nginx-advanced-service.yaml
+
+# 상태 확인
+kubectl get statefulset
+kubectl get pods
+kubectl get pvc
+
+# EBS 볼륨 확인
+kubectl describe pvc www-web-advanced-0
+kubectl describe pvc config-web-advanced-0
+
+# AWS EBS 볼륨 상태 확인
+aws ec2 describe-volumes --filters "Name=tag:kubernetes.io/cluster/*,Values=owned" --query 'Volumes[*].[VolumeId,Size,State,VolumeType]' --output table
+
+# 헬스체크 테스트
+kubectl logs web-advanced-0
+kubectl describe pod web-advanced-0
+kubectl exec web-advanced-0 -- env | grep NGINX
+
+# 리소스 사용량 확인
+kubectl top pods -l app=nginx-advanced
+```
+
+#### 확인 사항
+- [ ] 고급 StatefulSet이 정상 배포됨
+- [ ] 환경변수가 정상 설정됨
+- [ ] 리소스 제한이 적용됨
+- [ ] 헬스체크가 정상 작동함
+- [ ] 여러 PVC가 생성됨
+
+---
+
+### 연습문제 5: StatefulSet 업데이트 전략
+
+#### 문제
+StatefulSet의 롤링 업데이트를 수행하고 부분 업데이트를 테스트하세요.
+
+#### 5-1. 롤링 업데이트 수행
+```bash
+# 이미지를 nginx:1.22로 업데이트
+kubectl set image statefulset/web-advanced nginx=nginx:1.22
+
+# 업데이트 진행 상황 확인
+kubectl rollout status statefulset/web-advanced
+
+# Pod 상태 확인
+kubectl get pods -l app=nginx-advanced
+```
+
+#### 5-2. 부분 업데이트 테스트
+```bash
+# partition을 1로 설정하여 web-0만 업데이트
+kubectl patch statefulset web-advanced -p '{"spec":{"updateStrategy":{"rollingUpdate":{"partition":1}}}}'
+
+# 이미지를 nginx:1.23으로 업데이트
+kubectl set image statefulset/web-advanced nginx=nginx:1.23
+
+# 업데이트된 Pod 확인
+kubectl get pods -l app=nginx-advanced
+```
+
+#### 5-3. 롤백 테스트
+```bash
+# 이전 버전으로 롤백
+kubectl rollout undo statefulset/web-advanced
+
+# 롤백 상태 확인
+kubectl rollout status statefulset/web-advanced
+```
+
+#### 확인 사항
+- [ ] 롤링 업데이트가 순서대로 진행됨
+- [ ] 부분 업데이트가 정상 작동함
+- [ ] 롤백이 정상적으로 수행됨
+- [ ] 업데이트 중에도 서비스가 중단되지 않음
+
+---
+
+### 연습문제 정리
+
+#### 최종 확인 사항
+- [ ] StatefulSet의 기본 개념 이해
+- [ ] Headless Service와의 연동
+- [ ] 영구 스토리지의 동작 방식
+- [ ] 고급 구성 요소 적용
+- [ ] 업데이트 전략 이해
+
+#### 정리 명령어
+```bash
+# 모든 리소스 삭제
+kubectl delete statefulset --all
+kubectl delete service --all
+kubectl delete pvc --all
+
+# EBS 볼륨 정리 확인 (삭제되지 않은 볼륨이 있을 수 있음)
+aws ec2 describe-volumes --filters "Name=tag:kubernetes.io/cluster/*,Values=owned" --query 'Volumes[*].[VolumeId,Size,State]' --output table
+
+# 네임스페이스 삭제
+kubectl delete namespace statefulset-lab
+
+# AWS EBS 볼륨 수동 삭제 (필요시)
+# aws ec2 delete-volume --volume-id vol-xxxxxxxxx
+```
+
+---
+
+### 혹시나 시간 남으면 추가 도전!!!
+
+#### 도전 1: MySQL StatefulSet 구성
+MySQL StatefulSet을 구성하고 데이터 지속성을 확인해보세요.
+
+#### 도전 2: Redis Cluster 구성
+Redis Cluster를 StatefulSet으로 구성해보세요.
+
+#### 도전 3: 모니터링 추가
+Prometheus와 Grafana를 사용하여 StatefulSet 모니터링을 구성해보세요.
+
+---
+
+### 🔗 참고 자료
+
+- [Kubernetes StatefulSet 공식 문서](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/)
+- [StatefulSet 기본 튜토리얼](https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/)
+- [StatefulSet 고급 튜토리얼](https://kubernetes.io/docs/tutorials/stateful-application/statefulset-scale/)
+
+---
+

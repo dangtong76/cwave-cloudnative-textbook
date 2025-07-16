@@ -9,6 +9,7 @@ draft: false
 
   {{< embed-pdf url="/cwave-cloudnative-textbook/pdfs/codedeploy.pdf" >}}
 
+  {{< embed-pdf url="/cwave-cloudnative-textbook/pdfs/cicd.pdf" >}}
 ---
 ## 1. Simple Web 무식하게 배포하기
 ---
@@ -948,9 +949,14 @@ spec:
       port: 80
       targetPort: 80
 ```
-4. 
+
 
 ### 5. Github workflow 작성
+- Github Action Secret 작성
+DOCKER_USERNAME 
+DOCKER_TOKEN # Docker hub Token
+PAT # Github token
+-  yml 파일 작성
 ```yml
 name: simple-web-eks-ci
 
@@ -1016,12 +1022,10 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git commit -am "Update image tag to ${{ env.DOCKER_TAG }}"
-          git remote set-url origin https://${{ secrets.PAT }}@github.com/dangtong-s-inc/simple-service.git
+          git remote set-url origin https://${{ secrets.PAT }}@github.com/${{ secrets.DOCKER_USERNAME }}/simple-service.git
           
           git push origin main
 ```
-
-## 5. Simple WEB 쿠버네티스에 자동배포 하기
 
 
 

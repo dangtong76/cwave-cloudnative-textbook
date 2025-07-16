@@ -6,7 +6,7 @@ draft: false
 ---
 
 ## 11. 리소스 제어
-
+{{< embed-pdf url="/cwave-cloudnative-textbook/pdfs/hpa.pdf" >}}
 ### 11.1 부하 발생용 애플리 케이션 작성
 
 #### 11.1.1 PHP 애플리 케이션 작성

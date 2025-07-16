@@ -158,6 +158,9 @@ draft: false
     # aws 로드밸런서 상태 확인
     aws elbv2 describe-load-balancers
 
+    # default SC 설정
+    kubectl patch storageclass gp2 -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+    
     # Deploy Agent 로그 확인
     tail -100 /var/log/aws/codedeploy-agent/codedeploy-agent.log
 
