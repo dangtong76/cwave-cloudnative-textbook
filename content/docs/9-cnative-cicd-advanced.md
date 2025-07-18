@@ -43,6 +43,7 @@ touch aws-eks/base/istory-db/istory-db-pod.yml
 touch aws-eks/base/istory-db/istory-db-lb.yml
 touch aws-eks/base/istory-db/istory-db-pvc.yml
 touch aws-eks/base/istory-db/istory-db-sc.yml
+touch aws-eks/base/istory-db-init-config.yml
 touch aws-eks/base/istory-db/kustomization.yml
 touch aws-eks/base/istory-tools/busybox.yml
 touch aws-eks/base/istory-tools/kustomization.yml
