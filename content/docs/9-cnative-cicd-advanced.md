@@ -1003,7 +1003,7 @@ jobs:
         uses: gradle/gradle-build-action@v2
         
       - name: JAVA build with TEST
-        run: ./gradlew build -x text
+        run: ./gradlew build -x test
 
       - name: Docker 디렉토리로 JAR 파일 복사
         run: |
@@ -1359,7 +1359,7 @@ patches:
     target:
       kind: ConfigMap
       name: istory-app-config
-      
+
   - path: patch-lb-annotations.yml
     target:
       kind: Service
