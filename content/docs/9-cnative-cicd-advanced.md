@@ -13,39 +13,48 @@ gh auth status
 gh auth login 
 
 # 애플리케이션 리포지토리 Fork with Clone
-gh repo fork https://github.com/dangtong76/istory-web-k8s.git 
-
+gh repo fork https://github.com/dangtong76/istory-web-k8s.git --clone=false
+git clone https://github.com/<your-id>/istory-web-k8s.git istory-web
+# 플랫폼 리포지토리 Fork with Clone
+gh repo fork https://github.com/dangtong76/istory-platform-k8s.git --clone=false
+git clone https://github.com/<your-id>/istory-platform-k8s.git istory-platform
 ```
-## 2.xinfra 디렉토리 기본구조
-### - 디렉토리 구조 생각하기
-```bash
-xinfra/
-├── docker/
-│   ├── Dockerfile
-│   └── springbootdeveloper-0.0.1-SNAPSHOT.jar
-│
-└── aws-eks/
-    ├── base/
-    │   ├── istory-app/
-    │   ├── istory-db/
-    │   └── istory-tools/
-    │
-    └── overlay/
-        ├── aws-dev/
-        ├── aws-prod/
-        └── local-dev/
+
 ```
 ### - 디렉토리 생성하기
+labs/istory-platform 에서 수행
 ```bash
-mkdir -p xinfra/aws-eks/base/istory-app
-mkdir -p xinfra/aws-eks/base/istory-db
-mkdir -p xinfra/aws-eks/base/istory-tools
-mkdir -p xinfra/aws-eks/overlay/aws-dev
-mkdir -p xinfra/aws-eks/overlay/aws-prod
-mkdir -p xinfra/aws-eks/overlay/local-dev
-mkdir -p xinfra/docker
+mkdir -p aws-eks/base/istory-app
+mkdir -p aws-eks/base/istory-db
+mkdir -p aws-eks/base/istory-tools
+mkdir -p aws-eks/overlay/aws-dev
+mkdir -p aws-eks/overlay/aws-prod
+mkdir -p aws-eks/overlay/local-dev
 ```
 
+### - 파일 생성하기
+labs/istory-platform 에서 수행
+```bash
+touch aws-eks/base/istory-app/istory-app-config.yml
+touch aws-eks/base/istory-app/istory-app-deploy.yml
+touch aws-eks/base/istory-app/istory-app-lb.yml
+touch aws-eks/base/istory-app/kustomization.yml
+touch aws-eks/base/istory-db/istory-db-pod.yml
+touch aws-eks/base/istory-db/istory-db-lb.yml
+touch aws-eks/base/istory-db/istory-db-pvc.yml
+touch aws-eks/base/istory-db/istory-db-sc.yml
+touch aws-eks/base/istory-db/kustomization.yml
+touch aws-eks/base/istory-tools/busybox.yml
+touch aws-eks/base/istory-tools/kustomization.yml
+touch aws-eks/overlay/aws-dev/kustomization.yml
+touch aws-eks/overlay/aws-dev/patch-deploy.yml
+touch aws-eks/overlay/aws-dev/patch-lb-annotations.yml
+touch aws-eks/overlay/aws-dev/.env.secret
+```
+### - 개발 네임스페이스 생성
+```bash
+kubectl create ns istory-dev
+```
 ## 3. 도커 파일 빌드 및 업로드
 ### - 도커 파일생성
 파일위치 : xinfra/docker/Dockerfile
@@ -82,7 +91,12 @@ cp build/libs/springbootdeveloper-0.0.1-SNAPSHOT.jar xinfra/docker/
 # xinfra/docker 에서 수행
 # 컨테이너 이미지 빌드 
 docker build -t <your-docker-hub-id>/istory:1 .
-
+```
+```bash
+# 멀티 플랫폼 빌드 
+docker buildx build  --platform linux/amd64,linux/arm64  -t <your-dockerhub-id>/<image-name> --push .
+```
+```bash
 # latest 태그 만들기
 docker tag <your-docker-hub-id>/istory:1 <your-docker-hub-id>/istory:latest
 
@@ -240,7 +254,7 @@ metadata:
     app: mysql
 spec:
   containers:
-    - image: mysql/mysql-server
+    - image: mysql:5.6
       name: mysql
       envFrom:
         - secretRef:
@@ -251,10 +265,15 @@ spec:
       volumeMounts:
         - name: mysql-persistent-storage
           mountPath: /var/lib/mysql
+        - name: initdb
+          mountPath: /docker-entrypoint-initdb.d # mysql 컨테이너가 실행되면 최초로 자동 실행되는 디렉토리 
   volumes:
     - name: mysql-persistent-storage
       persistentVolumeClaim:
         claimName: mysql-pv-claim
+    - name: initdb
+      configMap:
+        name: mysql-initdb-config
 ```
 ### - istory-db-pvc.yml
 위치 : xinfra/aws-eks/base/istory-db
@@ -287,6 +306,22 @@ parameters:
   fsType: ext4
 volumeBindingMode: WaitForFirstConsumer
 ```
+
+### - istory-db-init-config.yml
+위치 : xinfra/aws-eks/base/istory-db
+```yml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp2-persistent
+provisioner: kubernetes.io/aws-ebs
+reclaimPolicy: Retain
+parameters:
+  type: gp2
+  fsType: ext4
+volumeBindingMode: WaitForFirstConsumer
+```
+
 ### kustomization.yml
 위치 : xinfra/aws-eks/base/istory-db
 ```yml
@@ -295,6 +330,7 @@ resources:
   - istory-db-lb.yml
   - istory-db-pvc.yml
   - istory-db-sc.yml
+  - istory-db-init-config.yml
 ```
 
 ## 6. istroy-tools base 생성
@@ -390,7 +426,14 @@ images:
 generatorOptions:
   disableNameSuffixHash: true
 ```
-
+### - .env.secret 파일 작성
+```bash
+# 아래 양식으로 .env.secret 파일을 만드세요
+MYSQL_USER=myuser
+MYSQL_PASSWORD=myuserpassword
+MYSQL_ROOT_PASSWORD=myrootpassword
+MYSQL_DATABASE=dbname
+```
 ### -  kustomize 설치
 - 실행 파일 다운로드
 ```bash
@@ -411,75 +454,6 @@ kustomize
 kustomize build overlay/aws-dev
 ```
 
-## [연습문제] 9-1. ConfigMapGenerator 사용
-현재 istory-app-config.yml 파일을 ConfigMapGenerator 를 사용하도록 변경하세요
-참조 사이트 : https://env.simplestep.ca/
-
-{{< answer >}}
-# .env.config
-SPRING_DATASOURCE_URL=jdbc:mysql://istory-db-lb:3306/istory
-SPRING_DATASOURCE_DRIVERCLASSNAME=com.mysql.cj.jdbc.Driver
-SPRING_JPA_DATABASEPLATFORM=org.hibernate.dialect.MySQLDialect
-SPRING_JPA_HIBERNATE_DDLAUTO=update
-SPRING_JPA_SHOWSQL=true
-SPRING_APPLICATION_NAME=USER-SERVICE
-{{< /answer >}}
-
-{{< answer >}}
-resources:
-  - ../../base/istory-app
-  - ../../base/istory-db
-
-namespace: istory-dev
-
-patches:
-  - path: patch-lb-annotations.yml
-    target:
-      kind: Service
-      name: istory-app-lb
-
-  - path: patch-deploy.yml
-    target:
-      kind: Deployment
-      name: istory-app-deploy
-
-secretGenerator:
-  - name: istory-db-secret
-    envs:
-      - .env.secret
-    # 아래 양식으로 .env.secret 파일을 만드세요
-    # MYSQL_USER=myuser
-    # MYSQL_PASSWORD=myuserpassword
-    # MYSQL_ROOT_PASSWORD=myrootpassword
-
-configMapGenerator:
-  - name: istory-app-config
-    envs:
-      - .env.config
-images:
-  # base/istory-app/istory-app-deploy.yml 내의 이미지 이름과 동일해야 변경됨
-  - name: <your-docker-hub-account-id>/istory # 변경필요
-    newTag: latest
-
-generatorOptions:
-  disableNameSuffixHash: true
-{{< /answer >}}
-
-{{< answer >}}
-아래 파일의 모든 내용을 주석 처리 합니다.
-xinfra/aws-eks/base/istory-app/istory-app-config.yml 
-{{< /answer >}}
-
-{{< answer >}}
-kustomize build overlay/aws-dev
-{{< /answer >}}
-
-
-## [연습문제] 9-2 aws-prod overlay 생성
-- istory prod 요구사항
-  -  AWS RDS 를 사용합니다.
-  -  Replica 개수를 3로 합니다.
-  -  istory.io 관련 annotation을 prod 기준으로 수정
 
 
 ### - 기타 참고 사항
@@ -976,7 +950,7 @@ jobs:
 
       - name: kubeconfig 업데이트
         run: |
-          aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name ${{ secrets.CLUSTER_NAME }}
+          aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name ${{ secrets.K8S_CLUSTER_NAME }}
 
       - name: kustomize 설치
         run: |
@@ -1029,7 +1003,7 @@ jobs:
         uses: gradle/gradle-build-action@v2
         
       - name: JAVA build with TEST
-        run: ./gradlew build
+        run: ./gradlew build -x text
 
       - name: Docker 디렉토리로 JAR 파일 복사
         run: |
@@ -1073,8 +1047,10 @@ jobs:
 
       - name: 이미지 태그 업데이트 (kustomize)
         run: |
-          cd overlay/aws-dev
+          ls
+          cd awsk-eks/overlay/aws-dev
           kustomize edit set image ${{ secrets.DOCKER_USERNAME }}/istory=${{ secrets.DOCKER_USERNAME }}/istory:${{ env.DOCKER_TAG }}
+
       - name: 서비스 리포지토리 최종 업데이트
         run: |
           git config --global user.name 'github-actions[bot]'
@@ -1104,3 +1080,421 @@ kubectl get svc -n istory-dev
 ```
 
 `http://<site-url>` 로 접속
+
+
+
+
+## [연습문제] 9-1. aws-prod overlay 생성
+- istory-prod 라는 별도의 네임스페이스를 만듭니다. 
+{{< answer >}}
+kubectl create ns istory-prod
+{{< /answer >}}
+- 데이터 베이스는 AWS RDS를 사용 하도록 테라폼 코드를 추가 합니다.
+{{< answer >}}
+# RDS Database Subnet Group
+resource "aws_db_subnet_group" "rds_subnet_group" {
+  name       = "${var.cluster_name}-rds-subnet-group"
+  subnet_ids = [for subnet in aws_subnet.private : subnet.id]
+
+  tags = {
+    Name = "${var.cluster_name}-rds-subnet-group"
+  }
+}
+
+# RDS Security Group
+resource "aws_security_group" "rds_sg" {
+  name        = "${var.cluster_name}-rds-sg"
+  description = "Security group for RDS database"
+  vpc_id      = aws_vpc.vpc.id
+
+  ingress {
+    description     = "MySQL from VPC"
+    from_port       = 3306
+    to_port         = 3306
+    protocol        = "tcp"
+    security_groups = [aws_security_group.private-sg.id]
+  }
+
+  ingress {
+    description     = "MySQL from EKS cluster"
+    from_port       = 3306
+    to_port         = 3306
+    protocol        = "tcp"
+    security_groups = [module.eks.cluster_security_group_id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.cluster_name}-rds-sg"
+  }
+}
+
+# RDS Parameter Group
+resource "aws_db_parameter_group" "rds_parameter_group" {
+  family = "mysql8.0"
+  name   = "${var.cluster_name}-rds-parameter-group"
+
+  parameter {
+    name  = "character_set_server"
+    value = "utf8mb4"
+  }
+
+  parameter {
+    name  = "character_set_client"
+    value = "utf8mb4"
+  }
+
+  parameter {
+    name  = "character_set_connection"
+    value = "utf8mb4"
+  }
+
+  parameter {
+    name  = "character_set_database"
+    value = "utf8mb4"
+  }
+
+  parameter {
+    name  = "character_set_results"
+    value = "utf8mb4"
+  }
+
+  parameter {
+    name  = "collation_server"
+    value = "utf8mb4_unicode_ci"
+  }
+
+  tags = {
+    Name = "${var.cluster_name}-rds-parameter-group"
+  }
+}
+
+# RDS Option Group
+resource "aws_db_option_group" "rds_option_group" {
+  engine_name              = "mysql"
+  major_engine_version     = "8.0"
+  name                     = "${var.cluster_name}-rds-option-group"
+  option_group_description = "Option group for ${var.cluster_name} RDS"
+
+  tags = {
+    Name = "${var.cluster_name}-rds-option-group"
+  }
+}
+
+# RDS Instance
+resource "aws_db_instance" "rds" {
+  identifier = "${var.cluster_name}-rds"
+
+  # Engine Configuration
+  engine         = "mysql"
+  engine_version = var.rds_engine_version
+  instance_class = var.rds_instance_class
+
+  # Storage Configuration
+  allocated_storage     = var.rds_allocated_storage
+  max_allocated_storage = var.rds_max_allocated_storage
+  storage_type          = "gp2"
+  storage_encrypted     = true
+
+  # Database Configuration
+  db_name  = var.rds_database_name
+  username = var.rds_username
+  password = var.rds_password
+
+  # Network Configuration
+  db_subnet_group_name   = aws_db_subnet_group.rds_subnet_group.name
+  vpc_security_group_ids = [aws_security_group.rds_sg.id]
+  publicly_accessible    = false
+  port                   = 3306
+
+  # Backup Configuration
+  backup_retention_period = var.rds_backup_retention_period
+  backup_window          = "03:00-04:00"
+  maintenance_window     = "sun:04:00-sun:05:00"
+
+  # Performance Configuration
+  parameter_group_name = aws_db_parameter_group.rds_parameter_group.name
+  option_group_name    = aws_db_option_group.rds_option_group.name
+
+  # Monitoring Configuration
+  monitoring_interval = 60
+  monitoring_role_arn = aws_iam_role.rds_monitoring_role.arn
+
+  # Deletion Protection
+  deletion_protection = false
+  skip_final_snapshot = true
+
+  # Tags
+  tags = {
+    Name        = "${var.cluster_name}-rds"
+    Environment = var.environment
+  }
+}
+
+# IAM Role for RDS Enhanced Monitoring
+resource "aws_iam_role" "rds_monitoring_role" {
+  name = "${var.cluster_name}-rds-monitoring-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "monitoring.rds.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# Attach RDS monitoring policy to the role
+resource "aws_iam_role_policy_attachment" "rds_monitoring_policy" {
+  role       = aws_iam_role.rds_monitoring_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
+}
+
+# Outputs
+output "rds_endpoint" {
+  description = "The connection endpoint for the RDS instance"
+  value       = aws_db_instance.rds.endpoint
+}
+
+output "rds_port" {
+  description = "The port on which the RDS instance accepts connections"
+  value       = aws_db_instance.rds.port
+}
+
+output "rds_database_name" {
+  description = "The name of the database"
+  value       = aws_db_instance.rds.db_name
+}
+
+output "rds_username" {
+  description = "The master username for the database"
+  value       = aws_db_instance.rds.username
+  sensitive   = true
+}
+
+output "rds_identifier" {
+  description = "The RDS instance identifier"
+  value       = aws_db_instance.rds.identifier
+} 
+{{< /answer >}}
+{{< answer >}}
+
+variable "rds_backup_retention_period" {
+  description = "backup retention"
+  type        = number
+  default     = 10 
+}
+variable "rds_password" {
+  description = "backup retention"
+  type        = string
+  default     = "user12345"  
+}
+variable "rds_username" {
+  description = "backup retention"
+  type        = string
+  default     = "user"  
+}
+
+variable "rds_database_name" {
+  description = "backup retention"
+  type        = string
+  default     = "istory"  
+}
+
+variable "rds_max_allocated_storage" {
+  description = "backup retention"
+  type        = number
+  default     = 100
+}
+
+variable "rds_allocated_storage" {
+    description = "The allocated storage in gigabytes"
+    type        = number
+    default     = 20
+}
+
+variable "rds_engine_version" {
+  description = "The engine version to use"
+  type        = string
+  default     = "8.0.35"
+}
+
+variable "rds_instance_class" {
+  description = "The instance type of the RDS instance"
+  type        = string
+  default     = "db.t3.micro"
+}
+{{< /answer >}}
+- overlay/aws-prod 디렉토리를 kustomzie 에 추가 합니다.
+{{< answer >}}
+mkdir -p aws-eks/overlay/aws-prod
+{{< /answer >}}
+- .env.secret 파일 작성합니다.
+{{< answer >}}
+MYSQL_USER=user
+MYSQL_PASSWORD=user12345
+MYSQL_ROOT_PASSWORD=admin123
+MYSQL_DATABASE=istory
+{{< /answer >}}
+- kustomiztion.yml 에 DB 부분을 삭제 합니다.(RDS 사용하기 때문에)
+{{< answer >}}
+resources:
+  - ../../base/istory-app
+
+namespace: istory-dev
+
+patches:
+  - path: patch-lb-annotations.yml
+    target:
+      kind: Service
+      name: istory-app-lb
+
+  - path: patch-deploy.yml
+    target:
+      kind: Deployment
+      name: istory-app-deploy
+
+secretGenerator:
+  - name: istory-db-secret
+    envs:
+      - .env.secret
+    # 아래 양식으로 .env.secret 파일을 만드세요
+    # MYSQL_USER=myuser
+    # MYSQL_PASSWORD=myuserpassword
+    # MYSQL_ROOT_PASSWORD=myrootpassword
+
+images:
+  # base/istory-app/istory-app-deploy.yml 내의 이미지 이름과 동일해야 변경됨
+  - name: <your-docker-hub-account-id>/istory # 변경필요
+    newTag: latest
+
+generatorOptions:
+  disableNameSuffixHash: true
+{{< /answer >}}
+- patch-app-config.yml 파이을 만들어서 RDS URL 로 변경 합니다.
+{{< answer >}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: istory-app-config
+data:
+  spring.datasource.url: 'jdbc:mysql://<Your-RDS-End-Poing-URL>:3306/istory'
+{{< /answer >}}
+- patch-deploy.yml 파일을 만들어서 annotation(istory.io/env: prod) 과 replicas 개수 변경 합니다.
+{{< answer >}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: istory-app-deploy
+  annotations:
+    istory.io/env: prod
+    istory.io/tier: backend-app
+    istory.io/infra: aws
+spec:
+  replicas: 5
+  template:
+    spec:
+      initContainers:
+        - name: check-mysql-ready
+          command: ['sh',
+                    '-c',
+                    'until mysqladmin ping -u ${MYSQL_USER} -p${MYSQL_PASSWORD} -h cwave-rds.cxqoe466wnup.ap-northeast-2.rds.amazonaws.com:3306; do echo waiting for database; sleep 2; done;']
+{{< /answer >}}
+- patch-lb-annotations.yml 의 annotation(istory.io/env: prod)로 변경
+{{< answer >}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: istory-lb
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: external
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    istory.io/infra: aws
+    istory.io/env: prod
+    istory.io/tier: app-lb
+{{< /answer >}}
+- 변경된 코드를 istory-platform-k8s 에 commit 후 push 합니다.
+{{< answer >}}
+git status
+git add .
+git commit -am "add yaml"
+git push origin main --force
+{{< /answer >}}
+- ArgoCD 에서 Repository 생성 및 Application 설정 합니다.
+
+
+
+## [연습문제] 9-2. ConfigMapGenerator 사용
+현재 istory-app-config.yml 파일을 ConfigMapGenerator 를 사용하도록 변경하세요
+참조 사이트 : https://env.simplestep.ca/
+
+{{< answer >}}
+# .env.config
+SPRING_DATASOURCE_URL=jdbc:mysql://istory-db-lb:3306/istory
+SPRING_DATASOURCE_DRIVERCLASSNAME=com.mysql.cj.jdbc.Driver
+SPRING_JPA_DATABASEPLATFORM=org.hibernate.dialect.MySQLDialect
+SPRING_JPA_HIBERNATE_DDLAUTO=update
+SPRING_JPA_SHOWSQL=true
+SPRING_APPLICATION_NAME=USER-SERVICE
+{{< /answer >}}
+
+{{< answer >}}
+resources:
+  - ../../base/istory-app
+  - ../../base/istory-db
+
+namespace: istory-dev
+
+patches:
+  - path: patch-lb-annotations.yml
+    target:
+      kind: Service
+      name: istory-app-lb
+
+  - path: patch-deploy.yml
+    target:
+      kind: Deployment
+      name: istory-app-deploy
+
+secretGenerator:
+  - name: istory-db-secret
+    envs:
+      - .env.secret
+    # 아래 양식으로 .env.secret 파일을 만드세요
+    # MYSQL_USER=myuser
+    # MYSQL_PASSWORD=myuserpassword
+    # MYSQL_ROOT_PASSWORD=myrootpassword
+
+configMapGenerator:
+  - name: istory-app-config
+    envs:
+      - .env.config
+images:
+  # base/istory-app/istory-app-deploy.yml 내의 이미지 이름과 동일해야 변경됨
+  - name: <your-docker-hub-account-id>/istory # 변경필요
+    newTag: latest
+
+generatorOptions:
+  disableNameSuffixHash: true
+{{< /answer >}}
+
+{{< answer >}}
+아래 파일의 모든 내용을 주석 처리 합니다.
+xinfra/aws-eks/base/istory-app/istory-app-config.yml 
+{{< /answer >}}
+
+{{< answer >}}
+kustomize build overlay/aws-dev
+{{< /answer >}}

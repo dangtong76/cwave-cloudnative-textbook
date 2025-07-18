@@ -21,6 +21,12 @@ draft: false
     # Stage 에 파일 추가
     git add .  
 
+    # 트래킹에서 제거 (파일)
+    git rm --cached <file-name>
+
+    # 트래킹에서 제거 (폴더)
+    git rm -r --cached <folder-name>
+    
     # 커밋할때 파일추가하고 메시지까지 남기기
     git commit -am <message> 
 
@@ -160,7 +166,7 @@ draft: false
 
     # default SC 설정
     kubectl patch storageclass gp2 -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
-    
+
     # Deploy Agent 로그 확인
     tail -100 /var/log/aws/codedeploy-agent/codedeploy-agent.log
 
