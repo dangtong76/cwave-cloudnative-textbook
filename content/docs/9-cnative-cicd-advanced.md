@@ -1352,9 +1352,14 @@ MYSQL_DATABASE=istory
 resources:
   - ../../base/istory-app
 
-namespace: istory-dev
+namespace: istory-prod
 
 patches:
+  - path: patch-app-config.yml
+    target:
+      kind: ConfigMap
+      name: istory-app-config
+      
   - path: patch-lb-annotations.yml
     target:
       kind: Service
