@@ -596,3 +596,80 @@ redis-cli -h <GATEWAY-ADDRESS> -p 6379 ping
 ```
 
 ## 8. Storage 기능 설정
+### - NFS 컨테이너가 kind 네트워크에 붙어 있는지 확인
+
+```
+docker inspect cwave-nfs-container --format '{{json .NetworkSettings.Networks.kind}}'
+```
+nfs 내부에서 확인 
+```
+docker exec -it cwave-nfs-container exportfs -v
+```
+kind 노드에서 확인
+```
+docker exec -it kind-control-plane bash -lc '
+mkdir -p /mnt/test &&
+mount -t nfs -o vers=4 cwave-nfs-container:/ /mnt/test &&
+echo ok-$(date) > /mnt/test/ok.txt &&
+cat /mnt/test/ok.txt
+'
+```
+
+### - NFS 테스트 
+- nfs-pvc-lab.yaml
+
+```
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: storage-lab
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-local
+  nfs:
+    # ✅ 핵심: docker network(kind) 안에서 컨테이너 이름으로 접근
+    server: cwave-nfs-container
+    path: /exports
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-pvc
+  namespace: storage-lab
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs-local
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pvc-test
+  namespace: storage-lab
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["sh","-c","echo $(date) from $(hostname) >> /data/out.txt; sleep 3600"]
+      volumeMounts:
+        - name: nfs-vol
+          mountPath: /data
+  volumes:
+    - name: nfs-vol
+      persistentVolumeClaim:
+        claimName: nfs-pvc
+```
+
+
