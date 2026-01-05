@@ -305,6 +305,11 @@ helm repo add metallb https://metallb.github.io/metallb
 helm install metallb metallb/metallb
 ```
 
+- kind network의 IP 대역 확인
+```
+docker network inspect kind --format '{{(index .IPAM.Config 0).Subnet}}'
+```
+
 - MetalLB 설정
 
 ```
@@ -315,7 +320,7 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-  - 192.168.247.100-192.168.247.110 # set by make target
+  - 192.168.247.100-192.168.247.110 # Docker kind 네트워크의 IP 대역으로 구간 할당
 ---
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
