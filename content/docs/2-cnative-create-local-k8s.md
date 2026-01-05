@@ -267,6 +267,57 @@ volumes:
     name: devops-cicd-vscode
 ```
 
+```
+services:
+  code-server:
+    image: dangtong76/cicd-devops-ide:arm64-v2
+    container_name: ide
+    networks:
+      - kind_network
+    environment:
+      AUTH: none
+    env_file:
+      - .env
+    working_dir: /code
+    ports:
+      - "8080:8080"
+      - "8444:8443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - devops-cicd-apps:/code/devops-cicd-apps
+      - devops-cicd-vscode:/config
+
+  nfs-server:
+    image: itsthenetwork/nfs-server-alpine:latest
+    container_name: nfs-server
+    networks:
+      - kind_network
+    privileged: true
+    environment:
+      - SHARED_DIRECTORY=/exports
+      # 아래는 실습용(접근 쉬움). 운영에선 제한 필요
+      - PERMITTED="172.21.0.0/16"
+    volumes:
+      - nfs-server-volume:/exports
+    # NFS 포트 (같은 docker 네트워크면 없어도 되지만, 디버깅용으로 열어두면 편함)
+    ports:
+      - "2049:2049"
+      - "111:111"
+      - "20048:20048"
+    restart: unless-stopped
+    
+
+networks:
+  kind_network:
+    name: kind
+    external: true
+
+volumes:
+  nfs-server-volume:
+    external: true
+    name: nfs-server-volume
+```
+
 - ~/.kube/config 파일의 API 접속 정보 수정
 ```bash
 docker network inspect kind # cwave-cluster-control-plane 의 IP주소 확인
