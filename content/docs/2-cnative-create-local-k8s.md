@@ -294,7 +294,7 @@ cwave-cluster-worker2         Ready    <none>          30m   v1.32.5
 ```
 ## 5. MetalLB 설치
 
-- MetalLB 설치
+### - MetalLB 설치
 
 ```
 # kubectl 이용
@@ -305,12 +305,12 @@ helm repo add metallb https://metallb.github.io/metallb
 helm install metallb metallb/metallb
 ```
 
-- kind network의 IP 대역 확인
+### - kind network의 IP 대역 확인
 ```
 docker network inspect kind --format '{{(index .IPAM.Config 0).Subnet}}'
 ```
 
-- MetalLB 설정
+### - MetalLB 설정
 
 ```
 apiVersion: metallb.io/v1beta1
@@ -331,6 +331,44 @@ spec:
   ipAddressPools:
   - cwave-pool
 ```
+
+### - MetalLB 정상 확인
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lb-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lb-test
+  template:
+    metadata:
+      labels:
+        app: lb-test
+    spec:
+      containers:
+        - name: app
+          image: hashicorp/http-echo:0.2.3
+          args:
+            - "-text=hello-metallb"
+          ports:
+            - containerPort: 5678
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lb-test
+spec:
+  type: LoadBalancer
+  selector:
+    app: lb-test
+  ports:
+    - port: 80
+      targetPort: 5678
+```
+hello-metallb 라고 나오면 정상
 
 ## 6. Ingress 및 LoadBalancer 설정
 
