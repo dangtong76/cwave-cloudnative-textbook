@@ -309,6 +309,7 @@ helm install metallb metallb/metallb
 ```
 docker network inspect kind --format '{{(index .IPAM.Config 0).Subnet}}'
 ```
+출력 예시 : 172.20.0.0/16
 
 ### - MetalLB 설정
 
@@ -320,7 +321,7 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-  - 192.168.247.100-192.168.247.110 # Docker kind 네트워크의 IP 대역으로 구간 할당
+  - 172.20.100.100-172.20.100.200 # Docker kind 네트워크의 IP 대역으로 구간 할당
 ---
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
@@ -368,6 +369,11 @@ spec:
     - port: 80
       targetPort: 5678
 ```
+
+```
+curl http://172.21.100.100
+```
+
 hello-metallb 라고 나오면 정상
 
 ## 6. Ingress 및 LoadBalancer 설정
