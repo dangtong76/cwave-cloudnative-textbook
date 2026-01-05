@@ -485,3 +485,114 @@ spec:
               number: 5678
 ---
 ```
+
+## 7. Geteway API 기능 설정
+### - Gateway API CRD 설치
+```
+kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml
+```
+
+### - Contour Gateway Provisioner 설치
+```
+kubectl apply -f https://projectcontour.io/quickstart/contour-gateway-provisioner.yaml
+```
+
+```
+kubectl get pod -n projectcontour -w
+```
+
+### - 정상 설정 확인 테스트
+
+```
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tcp-lab
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: tcp-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2
+          ports:
+            - containerPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-svc
+  namespace: tcp-lab
+spec:
+  selector:
+    app: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: contour-gwclass
+spec:
+  controllerName: projectcontour.io/gateway-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: tcp-gateway
+  namespace: tcp-lab
+spec:
+  gatewayClassName: contour-gwclass
+  listeners:
+    - name: tcp-redis
+      protocol: TCP
+      port: 6379
+      allowedRoutes:
+        namespaces:
+          from: Same
+---
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TCPRoute
+metadata:
+  name: redis-tcproute
+  namespace: tcp-lab
+spec:
+  parentRefs:
+    - name: tcp-gateway
+      sectionName: tcp-redis
+  rules:
+    - backendRefs:
+        - name: redis-svc
+          port: 6379
+```
+
+```
+kubectl apply -f tcp-contour-lab.yaml
+```
+
+
+```
+kubectl get gateway -n tcp-lab
+kubectl get svc -n tcp-lab
+```
+
+```
+redis-cli -h <GATEWAY-ADDRESS> -p 6379 ping
+# PONG 나오면 성공
+```
+
+## 8. Storage 기능 설정
