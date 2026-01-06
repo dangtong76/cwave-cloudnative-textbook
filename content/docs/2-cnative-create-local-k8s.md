@@ -267,7 +267,7 @@ volumes:
     name: devops-cicd-vscode
 ```
 
-```
+```yml
 services:
   code-server:
     image: dangtong76/cicd-devops-ide:arm64-v2
@@ -765,6 +765,22 @@ spec:
     - name: nfs-vol
       persistentVolumeClaim:
         claimName: nfs-pvc
+```
+
+### - 스토리지 확인
+```
+# kubernetes 내에서 확인
+kubectl apply -f nfs-pvc-lab.yaml
+kubectl get pv
+kubectl get pvc -n storage-lab
+kubectl get pod -n storage-lab
+kubectl exec -n storage-lab -it pvc-test -- cat /data/out.txt
+kubectl exec -n storage-lab -it pvc-test -- ls /data
+
+# Desktop 환경의 nfs 컨테이너 서비스에서 확인
+docker ps -a # nfs 컨테이너 컨테이너 ID 확인
+docker exec -it 699a618f12ca ls /exports
+docker exec -it rm -f /exports/out.txt
 ```
 
 
