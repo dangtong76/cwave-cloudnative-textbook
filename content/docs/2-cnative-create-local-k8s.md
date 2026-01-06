@@ -783,4 +783,59 @@ docker exec -it 699a618f12ca ls /exports
 docker exec -it rm -f /exports/out.txt
 ```
 
+## opencode 설치 및 사용법
+### 백앤드 LLM 설정
+- 로컬 LLM 설정 예제
+```
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "lmstudio": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "LM Studio (local)",
+      "options": {
+        "baseURL": "http://127.0.0.1:1234/v1"
+      },
+      "models": {
+        "google/gemma-3-12b": {
+          "name": "Gemma 3-12b (local)"
+        },
+        "qwen/qwen3-vl-4b": {
+          "name": "Qwen3-VL-4b (local)"
+        },
+      }
+    }
+  }
+}
+```
+### Agent 생성 및 사용 방법 분석
+#### 1. Agent 생성 방법들
+방법 A: 명령어로 생성
+opencode agent create
+- 인터랙티브하게 Agent 생성
+- 전역/프로젝트별 저장 위치 선택 가능
+방법 B: JSON 설정
+opencode.json에 직접 설정:
+```
+{
+  agent: {
+    custom-agent: {
+      description: 전문가 Assistant,
+      mode: primary,
+      model: opencode/big-pickle,
+      prompt: 당신은... 전문가입니다.
+    }
+  }
+}
+```
+방법 C: Markdown 파일
+~/.config/opencode/agent/ 또는 .opencode/agent/에 .md 파일로 생성
+2. Agent 사용 방법
+Primary Agent 전환
+- Tab 키로 Build ↔ Plan ↔ Custom Agent 순환
+- 현재 활성화된 Agent가 응답
+Subagent 호출
+- 메시지에서 @agent-name으로 직접 호출
+- 예: @custom-agent React 컴포넌트 최적화 방법 알려줘
+
 
