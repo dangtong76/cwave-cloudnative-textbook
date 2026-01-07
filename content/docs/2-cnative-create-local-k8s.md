@@ -784,6 +784,8 @@ docker exec -it rm -f /exports/out.txt
 ```
 
 ## opencode 설치 및 사용법
+### opencode 설치
+
 ### 백앤드 LLM 설정
 - 로컬 LLM 설정 예제
 ```
